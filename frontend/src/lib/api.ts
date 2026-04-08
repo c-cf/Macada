@@ -110,6 +110,22 @@ export function createAgent(body: unknown): Promise<Agent> {
   return postJSON("/v1/agents", body);
 }
 
+export function updateAgent(
+  id: string,
+  body: {
+    name?: string;
+    description?: string;
+    model?: string | { id: string; speed?: string };
+    system?: string;
+    tools?: unknown[];
+    mcp_servers?: unknown[];
+    skills?: unknown[];
+    metadata?: Record<string, string>;
+  }
+): Promise<Agent> {
+  return postJSON(`/v1/agents/${id}`, body);
+}
+
 // ── Sessions ─────────────────────────────────────────────────────────────
 
 export function listSessions(params?: {

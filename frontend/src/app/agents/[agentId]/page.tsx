@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { DataTable, Column } from "@/components/data-table";
 import { ErrorMessage } from "@/components/error-message";
+import { EditAgentDialog } from "@/components/edit-agent-dialog";
 import {
   timeAgo,
   truncateId,
@@ -67,6 +68,7 @@ export default function AgentDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"agent" | "sessions">("agent");
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -118,7 +120,10 @@ export default function AgentDetailPage() {
           { label: agent.name },
         ]}
         actions={
-          <button className="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors">
+          <button
+            onClick={() => setEditOpen(true)}
+            className="px-4 py-2 text-sm font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
+          >
             Edit
           </button>
         }
@@ -245,6 +250,13 @@ export default function AgentDetailPage() {
           emptyMessage="No sessions found for this agent"
         />
       )}
+
+      <EditAgentDialog
+        open={editOpen}
+        agent={agent}
+        onClose={() => setEditOpen(false)}
+        onUpdated={(updated) => setAgent(updated)}
+      />
     </div>
   );
 }
