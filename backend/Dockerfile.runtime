@@ -1,0 +1,21 @@
+FROM golang:1-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -o /runtime ./cmd/runtime
+
+FROM ubuntu:24.04
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl git jq && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /runtime /usr/local/bin/runtime
+
+RUN useradd -m -s /bin/bash agent
+USER agent
+WORKDIR /workspace
+
+EXPOSE 9090
+CMD ["runtime"]

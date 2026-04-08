@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS agents;
+DROP TABLE IF EXISTS environments;

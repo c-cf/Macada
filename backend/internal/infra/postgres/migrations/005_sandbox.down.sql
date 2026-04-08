@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS sandboxes;
+ALTER TABLE sessions DROP COLUMN IF EXISTS sandbox_id
