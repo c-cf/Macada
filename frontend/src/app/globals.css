@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Surfaces ────────────────────────────────────────────── */
+  --color-background: #fbfcfd;
+  --color-foreground: #090f12;
+  --color-card: #ffffff;
+  --color-card-foreground: #090f12;
+  --color-muted: #f0f2f7;
+  --color-muted-foreground: #5f6b7a;
+
+  /* ── Primary (CTA buttons, active indicators, links) ───── */
+  --color-primary: #5694af;
+  --color-primary-foreground: #ffffff;
+
+  /* ── Secondary (badges, subtle highlights) ─────────────── */
+  --color-secondary: #a4aad4;
+  --color-secondary-foreground: #ffffff;
+
+  /* ── Accent (active sidebar, focus, tags) ──────────────── */
+  --color-accent: #7675be;
+  --color-accent-foreground: #ffffff;
+
+  /* ── Borders & inputs ────────────────────────────────────── */
+  --color-border: #dfe3ea;
+  --color-input: #dfe3ea;
+  --color-ring: #5694af;
+
+  /* ── Feedback ────────────────────────────────────────────── */
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-info: #3b82f6;
+  --color-info-foreground: #ffffff;
+
+  /* ── Sidebar ─────────────────────────────────────────────── */
+  --color-sidebar: #f5f7fa;
+  --color-sidebar-foreground: #1e2a35;
+  --color-sidebar-hover: #edf0f5;
+  --color-sidebar-active: #e8eef5;
+  --color-sidebar-border: #dfe3ea;
+}
+
+body {
+  background-color: var(--color-background);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a0b2;
+}
