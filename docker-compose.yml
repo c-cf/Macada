@@ -1,0 +1,84 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: managed_agents
+      POSTGRES_PASSWORD: managed_agents
+      POSTGRES_DB: managed_agents
+    ports:
+      # Optional: expose to host for GUI tools (DBeaver etc.)
+      # Default 15432 to avoid collision with local PostgreSQL on 5432
+      - "${EXTERNAL_DB_PORT:-15432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U managed_agents"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      # Optional: expose to host for debugging
+      - "${EXTERNAL_REDIS_PORT:-16379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    environment:
+      PORT: 8080
+      # Internal network: use service name 'postgres', not localhost
+      DATABASE_URL: postgres://managed_agents:managed_agents@postgres:5432/managed_agents?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LOG_LEVEL: debug
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["/bin/sh", "-c", "/server -migrate-up && /server"]
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      # Browser-side API URL: must be accessible from user's browser (host network)
+      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-8080}
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+  # Agent Runtime image (build only, not a service — instantiated per-session)
+  runtime:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.runtime
+    image: managed-agents-runtime:latest
+    profiles: ["build"]
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:

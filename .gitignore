@@ -1,0 +1,23 @@
+# Local reference docs (not tracked)
+docs/
+
+# Environment
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Go
+backend/bin/
+backend/tmp/
+
+# Node
+frontend/node_modules/
+frontend/.next/
