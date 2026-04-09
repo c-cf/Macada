@@ -4,8 +4,11 @@ import { AuthGuard } from "@/components/auth-guard";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Agent Console",
-  description: "Managed Agents Console",
+  title: "Macada",
+  description: "Macada — Managed Agents Console",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

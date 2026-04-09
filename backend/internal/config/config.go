@@ -51,7 +51,7 @@ func Load() (*Config, error) {
 	sandboxSecret := os.Getenv("SANDBOX_SECRET")
 	runtimeImage := os.Getenv("RUNTIME_IMAGE")
 	if runtimeImage == "" {
-		runtimeImage = "managed-agents-runtime:latest"
+		runtimeImage = "macada-runtime:latest"
 	}
 	controlPlaneURL := os.Getenv("CONTROL_PLANE_URL")
 	if controlPlaneURL == "" {
@@ -63,7 +63,7 @@ func Load() (*Config, error) {
 	}
 	networkName := os.Getenv("SANDBOX_NETWORK")
 	if networkName == "" {
-		networkName = "managed-agents_internal"
+		networkName = "macada_internal"
 	}
 
 	adminSecret := os.Getenv("ADMIN_SECRET")

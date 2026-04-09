@@ -73,7 +73,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile.runtime
-    image: managed-agents-runtime:latest
+    image: macada-runtime:latest
     profiles: ["build"]
 
 networks:
