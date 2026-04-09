@@ -118,7 +118,7 @@ func (e *ToolExecutor) executeReadFile(input json.RawMessage) ToolResult {
 	// Add line numbers
 	var sb strings.Builder
 	for i, line := range selected {
-		sb.WriteString(fmt.Sprintf("%d\t%s\n", offset+i+1, line))
+		fmt.Fprintf(&sb, "%d\t%s\n", offset+i+1, line)
 	}
 
 	return ToolResult{Content: truncateOutput(sb.String()), IsError: false}

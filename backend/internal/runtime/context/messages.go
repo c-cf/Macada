@@ -50,7 +50,7 @@ func eventToBlock(evt *domain.Event) (string, ContentBlock) {
 			Name  string          `json:"name"`
 			Input json.RawMessage `json:"input"`
 		}
-		json.Unmarshal(evt.Payload, &p)
+		_ = json.Unmarshal(evt.Payload, &p)
 		return "assistant", ContentBlock{
 			Type:  "tool_use",
 			ID:    p.ID,
@@ -64,7 +64,7 @@ func eventToBlock(evt *domain.Event) (string, ContentBlock) {
 			Content   json.RawMessage `json:"content"`
 			IsError   bool            `json:"is_error"`
 		}
-		json.Unmarshal(evt.Payload, &p)
+		_ = json.Unmarshal(evt.Payload, &p)
 
 		// Content can be string or structured
 		text := ""

@@ -88,7 +88,7 @@ func (r *Reporter) Report(ctx context.Context, eventType string, payload interfa
 			log.Warn().Err(err).Int("attempt", attempt+1).Str("type", eventType).Msg("report event failed")
 			continue
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			return nil
@@ -121,7 +121,7 @@ func (r *Reporter) heartbeatLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			r.Report(ctx, "runtime.heartbeat", map[string]string{
+			_ = r.Report(ctx, "runtime.heartbeat", map[string]string{
 				"session_id": r.sessionID,
 				"timestamp":  time.Now().UTC().Format(time.RFC3339),
 			})

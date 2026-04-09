@@ -70,7 +70,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to Redis")
 	}
-	defer redisClient.Close()
+	defer func() { _ = redisClient.Close() }()
 	log.Info().Msg("connected to Redis")
 
 	// Initialize repositories

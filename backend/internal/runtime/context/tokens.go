@@ -1,8 +1,6 @@
 package context
 
 import (
-	"encoding/json"
-
 	"github.com/cchu-code/managed-agents/internal/domain"
 )
 
@@ -55,19 +53,3 @@ func EstimateMessagesTokens(messages []Message) int {
 	return total
 }
 
-// payloadSize returns the byte length of an event's payload.
-func payloadSize(evt *domain.Event) int {
-	if evt == nil || len(evt.Payload) == 0 {
-		return 0
-	}
-	// Quick check: if payload is just "{}", treat as empty
-	var m map[string]json.RawMessage
-	if json.Unmarshal(evt.Payload, &m) == nil {
-		total := 0
-		for _, v := range m {
-			total += len(v)
-		}
-		return total
-	}
-	return len(evt.Payload)
-}

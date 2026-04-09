@@ -160,7 +160,7 @@ func (c *AnthropicClient) CreateMessageStream(ctx context.Context, req MessageRe
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, parseAPIError(resp)
@@ -180,7 +180,7 @@ func (c *AnthropicClient) doRequest(ctx context.Context, body []byte) (*MessageR
 	if err != nil {
 		return nil, fmt.Errorf("send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		apiErr := parseAPIError(resp)
@@ -294,7 +294,7 @@ func parseAPIError(resp *http.Response) *APIError {
 		} `json:"error"`
 	}
 	body, _ := io.ReadAll(resp.Body)
-	json.Unmarshal(body, &errResp)
+	_ = json.Unmarshal(body, &errResp)
 
 	return &APIError{
 		StatusCode: resp.StatusCode,

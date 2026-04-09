@@ -122,7 +122,7 @@ func ParseSkillZip(data []byte) (ParsedZip, error) {
 			return ParsedZip{}, fmt.Errorf("failed to open %s: %w", f.Name, err)
 		}
 		content, err := io.ReadAll(rc)
-		rc.Close()
+		_ = rc.Close()
 		if err != nil {
 			return ParsedZip{}, fmt.Errorf("failed to read %s: %w", f.Name, err)
 		}

@@ -66,7 +66,7 @@ func TestLoad_FullConfig(t *testing.T) {
 
 	// tools
 	var tools []json.RawMessage
-	json.Unmarshal(cfg.Tools, &tools)
+	_ = json.Unmarshal(cfg.Tools, &tools)
 	if len(tools) != 1 {
 		t.Errorf("tools count = %d, want 1", len(tools))
 	}

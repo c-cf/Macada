@@ -75,14 +75,14 @@ func (h *EventHandler) Send(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Publish to event bus for SSE subscribers
-		h.eventBus.Publish(r.Context(), sessionID, evt)
+		_ = h.eventBus.Publish(r.Context(), sessionID, evt)
 		storedEvents = append(storedEvents, evt)
 	}
 
 	// If there's a user.message, trigger the runner asynchronously
 	for _, ep := range req.Events {
 		if ep.Type == domain.EventTypeUserMessage {
-			go h.runner.Run(r.Context(), sessionID, req.Events)
+			go func() { _ = h.runner.Run(r.Context(), sessionID, req.Events) }()
 			break
 		}
 	}

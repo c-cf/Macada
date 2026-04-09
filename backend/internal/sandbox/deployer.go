@@ -70,7 +70,7 @@ func (d *Deployer) Deploy(basePath string, manifest DeployManifest) error {
 
 	// 4. tools.json — tool definitions
 	tools := manifest.Tools
-	if tools == nil || len(tools) == 0 {
+	if len(tools) == 0 {
 		tools = json.RawMessage("[]")
 	}
 	if err := writeFile(basePath, filepath.Join(claudeDir, "tools.json"), string(tools)); err != nil {
@@ -148,10 +148,10 @@ func (d *Deployer) deploySkill(basePath string, skill SkillManifest) error {
 func reconstructSkillMD(skill SkillManifest) string {
 	var sb strings.Builder
 	sb.WriteString("---\n")
-	sb.WriteString(fmt.Sprintf("name: %s\n", skill.Name))
-	sb.WriteString(fmt.Sprintf("description: %s\n", yamlQuote(skill.Description)))
+	fmt.Fprintf(&sb, "name: %s\n", skill.Name)
+	fmt.Fprintf(&sb, "description: %s\n", yamlQuote(skill.Description))
 	if skill.License != "" {
-		sb.WriteString(fmt.Sprintf("license: %s\n", skill.License))
+		fmt.Fprintf(&sb, "license: %s\n", skill.License)
 	}
 	sb.WriteString("---\n\n")
 	sb.WriteString(skill.Content)

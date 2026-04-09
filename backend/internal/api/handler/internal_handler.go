@@ -86,18 +86,18 @@ func (h *InternalHandler) IngestEvents(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		h.eventBus.Publish(r.Context(), sessionID, evt)
+		_ = h.eventBus.Publish(r.Context(), sessionID, evt)
 
 		// Handle session status transitions
 		switch ie.Type {
 		case domain.EventTypeSessionIdle:
-			h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusIdle)
+			_ = h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusIdle)
 
 		case domain.EventTypeSessionRunning:
-			h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusRunning)
+			_ = h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusRunning)
 
 		case domain.EventTypeSessionTerminated:
-			h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusTerminated)
+			_ = h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusTerminated)
 
 		case domain.EventTypeSessionError:
 			log.Warn().Str("session_id", sessionID).RawJSON("error", ie.Payload).Msg("session error reported by runtime")
@@ -127,7 +127,7 @@ func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string,
 	var snap struct {
 		ID string `json:"id"`
 	}
-	json.Unmarshal(session.Agent, &snap)
+	_ = json.Unmarshal(session.Agent, &snap)
 
 	now := time.Now().UTC()
 	logEntry := postgres.LogRow{
@@ -144,7 +144,7 @@ func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string,
 		CreatedAt:           now,
 	}
 
-	h.analyticsRepo.InsertRequestLog(ctx, logEntry)
-	h.analyticsRepo.IncrementDailyUsage(ctx, session.WorkspaceID, now, logEntry.Model,
+	_ = h.analyticsRepo.InsertRequestLog(ctx, logEntry)
+	_ = h.analyticsRepo.IncrementDailyUsage(ctx, session.WorkspaceID, now, logEntry.Model,
 		logEntry.InputTokens, logEntry.OutputTokens, logEntry.CacheReadTokens, logEntry.CacheCreationTokens)
 }

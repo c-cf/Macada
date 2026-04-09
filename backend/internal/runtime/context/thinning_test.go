@@ -84,7 +84,7 @@ func TestThinEvents_PreservesToolUseID(t *testing.T) {
 	var p struct {
 		ToolUseID string `json:"tool_use_id"`
 	}
-	json.Unmarshal(result[0].Payload, &p)
+	_ = json.Unmarshal(result[0].Payload, &p)
 	if p.ToolUseID != "keep-this" {
 		t.Errorf("tool_use_id = %q, want %q", p.ToolUseID, "keep-this")
 	}

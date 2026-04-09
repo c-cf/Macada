@@ -59,7 +59,7 @@ func (r *Runner) Run(ctx context.Context, sessionID string, events []domain.Send
 	if compressResult != nil && compressResult.Memory != nil {
 		memJSON, err := json.Marshal(compressResult.Memory)
 		if err == nil {
-			r.sessionRepo.UpdateMemory(bgCtx, sessionID, memJSON)
+			_ = r.sessionRepo.UpdateMemory(bgCtx, sessionID, memJSON)
 		}
 	}
 
@@ -149,7 +149,7 @@ func (r *Runner) Run(ctx context.Context, sessionID string, events []domain.Send
 	// 8. Update session usage
 	inputTokens := int64(100)
 	outputTokens := int64(50)
-	r.sessionRepo.UpdateUsage(bgCtx, sessionID, domain.SessionUsage{
+	_ = r.sessionRepo.UpdateUsage(bgCtx, sessionID, domain.SessionUsage{
 		InputTokens:  &inputTokens,
 		OutputTokens: &outputTokens,
 	})
@@ -176,7 +176,7 @@ func (r *Runner) prepareContext(ctx context.Context, sessionID string) ([]prompt
 	var existingMemory *svcctx.SessionMemory
 	if len(session.Memory) > 0 && string(session.Memory) != "{}" {
 		existingMemory = &svcctx.SessionMemory{}
-		json.Unmarshal(session.Memory, existingMemory)
+		_ = json.Unmarshal(session.Memory, existingMemory)
 	}
 
 	// Fetch all session events

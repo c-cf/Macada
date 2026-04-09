@@ -48,7 +48,7 @@ func (s *Server) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": status})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": status})
 }
 
 // forwardPayload mirrors sandbox.ForwardPayload (avoid import cycle).
@@ -78,7 +78,7 @@ func (s *Server) HandleEvents(w http.ResponseWriter, r *http.Request) {
 	newMessages := extractUserMessages(payload.NewEvents)
 	if len(newMessages) == 0 && len(payload.Messages) == 0 {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "no_messages"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "no_messages"})
 		return
 	}
 
@@ -112,13 +112,13 @@ func (s *Server) HandleEvents(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "started"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "started"})
 }
 
 // Stop triggers a graceful shutdown.
 func (s *Server) Stop(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "stopping"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "stopping"})
 }
 
 func extractUserMessages(events []newEvent) []rtctx.Message {

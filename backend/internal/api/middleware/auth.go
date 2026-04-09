@@ -115,7 +115,7 @@ func SHA256Hex(s string) string {
 func writeAuthError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"type":  "error",
 		"error": map[string]string{"type": http.StatusText(status), "message": message},
 	})

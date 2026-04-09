@@ -211,7 +211,7 @@ func (c *DockerClient) CopyToContainer(ctx context.Context, containerID, destPat
 	if err != nil {
 		return fmt.Errorf("copy to container: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -232,7 +232,7 @@ func (c *DockerClient) doJSON(ctx context.Context, method, url string, body []by
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -260,7 +260,7 @@ func (c *DockerClient) do(ctx context.Context, method, url string, body []byte) 
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {

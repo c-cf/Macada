@@ -11,7 +11,7 @@ import (
 
 func TestToolExecutor_ReadFile(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "test.txt"), []byte("line1\nline2\nline3"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "test.txt"), []byte("line1\nline2\nline3"), 0o644)
 
 	exec := NewToolExecutor(dir)
 	result := exec.Execute(context.Background(), "read_file",
@@ -47,8 +47,8 @@ func TestToolExecutor_WriteFile(t *testing.T) {
 
 func TestToolExecutor_ListDir(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0o644)
-	os.Mkdir(filepath.Join(dir, "subdir"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "a.txt"), []byte("a"), 0o644)
+	_ = os.Mkdir(filepath.Join(dir, "subdir"), 0o755)
 
 	exec := NewToolExecutor(dir)
 	result := exec.Execute(context.Background(), "list_dir",

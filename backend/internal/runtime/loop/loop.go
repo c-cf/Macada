@@ -92,14 +92,14 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 	}
 	midTurnThreshold := int(float64(contextLimit) * midTurnCompressRatio)
 
-	l.reporter.Report(ctx, "session.status_running", nil)
+	_ = l.reporter.Report(ctx, "session.status_running", nil)
 
 	for round := 0; round < maxToolRounds; round++ {
 		// Mid-turn compression: if messages are getting too large, thin old tool results
 		messages = l.midTurnCompress(messages, midTurnThreshold)
 
 		startTime := time.Now()
-		l.reporter.Report(ctx, "span.model_request_start", nil)
+		_ = l.reporter.Report(ctx, "span.model_request_start", nil)
 
 		resp, err := l.api.CreateMessage(ctx, MessageRequest{
 			Model:     l.config.Settings.Model.ID,
@@ -109,7 +109,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 			MaxTokens: defaultMaxToks,
 		})
 		if err != nil {
-			l.reporter.Report(ctx, "span.model_request_end", map[string]interface{}{
+			_ = l.reporter.Report(ctx, "span.model_request_end", map[string]interface{}{
 				"is_error": true,
 				"error":    err.Error(),
 			})
@@ -117,7 +117,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 			return fmt.Errorf("api call: %w", err)
 		}
 
-		l.reporter.Report(ctx, "span.model_request_end", map[string]interface{}{
+		_ = l.reporter.Report(ctx, "span.model_request_end", map[string]interface{}{
 			"is_error":    false,
 			"latency_ms":  time.Since(startTime).Milliseconds(),
 			"model_usage": resp.Usage,
@@ -128,12 +128,12 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 		for _, block := range resp.Content {
 			switch block.Type {
 			case "text":
-				l.reporter.Report(ctx, "agent.message", map[string]interface{}{
+				_ = l.reporter.Report(ctx, "agent.message", map[string]interface{}{
 					"content": []map[string]string{{"type": "text", "text": block.Text}},
 				})
 			case "tool_use":
 				toolUses = append(toolUses, block)
-				l.reporter.Report(ctx, "agent.tool_use", map[string]interface{}{
+				_ = l.reporter.Report(ctx, "agent.tool_use", map[string]interface{}{
 					"id":    block.ID,
 					"name":  block.Name,
 					"input": block.Input,
@@ -146,7 +146,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 		messages = append(messages, Message{Role: "assistant", Content: assistantContent})
 
 		if resp.StopReason == "end_turn" || len(toolUses) == 0 {
-			l.reporter.Report(ctx, "session.status_idle", map[string]interface{}{
+			_ = l.reporter.Report(ctx, "session.status_idle", map[string]interface{}{
 				"stop_reason": map[string]string{"type": resp.StopReason},
 			})
 			return nil
@@ -156,7 +156,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 		var toolResults []map[string]interface{}
 		for _, tu := range toolUses {
 			result := l.tools.Execute(ctx, tu.Name, tu.Input)
-			l.reporter.Report(ctx, "agent.tool_result", map[string]interface{}{
+			_ = l.reporter.Report(ctx, "agent.tool_result", map[string]interface{}{
 				"tool_use_id": tu.ID,
 				"content":     result.Content,
 				"is_error":    result.IsError,
@@ -173,7 +173,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 		messages = append(messages, Message{Role: "user", Content: resultsJSON})
 	}
 
-	l.reporter.Report(ctx, "session.status_idle", map[string]interface{}{
+	_ = l.reporter.Report(ctx, "session.status_idle", map[string]interface{}{
 		"stop_reason": map[string]string{"type": "max_tool_rounds"},
 	})
 	return fmt.Errorf("reached max tool rounds (%d)", maxToolRounds)
@@ -319,7 +319,7 @@ func (l *Loop) reportAPIError(ctx context.Context, err error) {
 
 // reportError sends a session.error event followed by session.status_idle with retries_exhausted.
 func (l *Loop) reportError(ctx context.Context, errorType, message, retryStatus string) {
-	l.reporter.Report(ctx, "session.error", map[string]interface{}{
+	_ = l.reporter.Report(ctx, "session.error", map[string]interface{}{
 		"error": map[string]interface{}{
 			"type":    errorType,
 			"message": message,
@@ -333,7 +333,7 @@ func (l *Loop) reportError(ctx context.Context, errorType, message, retryStatus 
 	if retryStatus == "terminal" {
 		stopReason = "terminal"
 	}
-	l.reporter.Report(ctx, "session.status_idle", map[string]interface{}{
+	_ = l.reporter.Report(ctx, "session.status_idle", map[string]interface{}{
 		"stop_reason": map[string]string{"type": stopReason},
 	})
 }

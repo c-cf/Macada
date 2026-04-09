@@ -24,7 +24,7 @@ func TestReporter_ReportSuccess(t *testing.T) {
 		}
 
 		var body map[string]interface{}
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 
 		w.WriteHeader(http.StatusOK)
 	}))

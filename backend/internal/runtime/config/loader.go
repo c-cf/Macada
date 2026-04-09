@@ -41,7 +41,7 @@ func Load(basePath string) (*RuntimeConfig, error) {
 	cfg.SystemPrompt = readFileOrEmpty(basePath, claudeMDFile)
 
 	// 3. settings.json (optional)
-	readJSON(basePath, settingsFile, &cfg.Settings)
+	_ = readJSON(basePath, settingsFile, &cfg.Settings)
 
 	// 4. tools.json (optional)
 	toolsData := readFileOrEmpty(basePath, toolsFile)
@@ -52,10 +52,10 @@ func Load(basePath string) (*RuntimeConfig, error) {
 	}
 
 	// 5. packages.json (optional)
-	readJSON(basePath, packagesFile, &cfg.Packages)
+	_ = readJSON(basePath, packagesFile, &cfg.Packages)
 
 	// 6. session.json (optional)
-	readJSON(basePath, sessionFile, &cfg.Session)
+	_ = readJSON(basePath, sessionFile, &cfg.Session)
 
 	// 7. Discover skills
 	skills, err := discoverSkills(filepath.Join(basePath, skillsDir))

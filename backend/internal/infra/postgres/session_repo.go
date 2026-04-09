@@ -206,12 +206,12 @@ func scanSession(row pgx.Row) (*domain.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(statsJSON, &s.Stats)
-	json.Unmarshal(usageJSON, &s.Usage)
+	_ = json.Unmarshal(statsJSON, &s.Stats)
+	_ = json.Unmarshal(usageJSON, &s.Usage)
 	s.Metadata = map[string]string{}
-	json.Unmarshal(metaJSON, &s.Metadata)
+	_ = json.Unmarshal(metaJSON, &s.Metadata)
 	s.VaultIDs = []string{}
-	json.Unmarshal(vaultJSON, &s.VaultIDs)
+	_ = json.Unmarshal(vaultJSON, &s.VaultIDs)
 	s.Type = "session"
 	return &s, nil
 }
@@ -227,12 +227,12 @@ func scanSessionRows(rows pgx.Rows) (*domain.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(statsJSON, &s.Stats)
-	json.Unmarshal(usageJSON, &s.Usage)
+	_ = json.Unmarshal(statsJSON, &s.Stats)
+	_ = json.Unmarshal(usageJSON, &s.Usage)
 	s.Metadata = map[string]string{}
-	json.Unmarshal(metaJSON, &s.Metadata)
+	_ = json.Unmarshal(metaJSON, &s.Metadata)
 	s.VaultIDs = []string{}
-	json.Unmarshal(vaultJSON, &s.VaultIDs)
+	_ = json.Unmarshal(vaultJSON, &s.VaultIDs)
 	s.Type = "session"
 	return &s, nil
 }

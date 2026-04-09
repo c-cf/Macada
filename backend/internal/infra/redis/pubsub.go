@@ -34,7 +34,7 @@ func (b *EventBus) Subscribe(ctx context.Context, sessionID string) (<-chan *dom
 
 	// Wait for subscription confirmation
 	if _, err := sub.Receive(ctx); err != nil {
-		sub.Close()
+		_ = sub.Close()
 		return nil, nil, fmt.Errorf("subscribe: %w", err)
 	}
 
@@ -60,7 +60,7 @@ func (b *EventBus) Subscribe(ctx context.Context, sessionID string) (<-chan *dom
 					return
 				}
 			case <-subCtx.Done():
-				sub.Close()
+				_ = sub.Close()
 				return
 			}
 		}

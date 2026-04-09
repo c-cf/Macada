@@ -47,12 +47,12 @@ func ExtractMemory(events []*domain.Event) (*SessionMemory, error) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("## Conversation Summary (%d turns)\n\n", turnCount))
+	fmt.Fprintf(&sb, "## Conversation Summary (%d turns)\n\n", turnCount)
 
 	if len(userRequests) > 0 {
 		sb.WriteString("### User Requests\n")
 		for i, req := range userRequests {
-			sb.WriteString(fmt.Sprintf("- Turn %d: %q\n", i+1, req))
+			fmt.Fprintf(&sb, "- Turn %d: %q\n", i+1, req)
 		}
 		sb.WriteString("\n")
 	}
@@ -60,7 +60,7 @@ func ExtractMemory(events []*domain.Event) (*SessionMemory, error) {
 	if len(toolUsage) > 0 {
 		sb.WriteString("### Tools Used\n")
 		for name, count := range toolUsage {
-			sb.WriteString(fmt.Sprintf("- %s (%d calls)\n", name, count))
+			fmt.Fprintf(&sb, "- %s (%d calls)\n", name, count)
 		}
 		sb.WriteString("\n")
 	}
@@ -68,7 +68,7 @@ func ExtractMemory(events []*domain.Event) (*SessionMemory, error) {
 	if len(agentResponses) > 0 {
 		sb.WriteString("### Agent Responses\n")
 		for i, resp := range agentResponses {
-			sb.WriteString(fmt.Sprintf("- Turn %d: %q\n", i+1, resp))
+			fmt.Fprintf(&sb, "- Turn %d: %q\n", i+1, resp)
 		}
 	}
 

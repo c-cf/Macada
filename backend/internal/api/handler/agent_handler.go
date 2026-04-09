@@ -215,7 +215,7 @@ func parseModelConfig(raw json.RawMessage) (domain.ModelConfig, error) {
 }
 
 func defaultJSON(raw json.RawMessage, fallback string) json.RawMessage {
-	if raw == nil || len(raw) == 0 {
+	if len(raw) == 0 {
 		return json.RawMessage(fallback)
 	}
 	return raw

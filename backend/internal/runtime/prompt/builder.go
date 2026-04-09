@@ -97,7 +97,7 @@ func buildSkillSection(skills []ResolvedSkill) string {
 		if i > 0 {
 			sb.WriteString("\n---\n\n")
 		}
-		sb.WriteString(fmt.Sprintf("## %s\n\n%s", skill.Name, skill.Content))
+		fmt.Fprintf(&sb, "## %s\n\n%s", skill.Name, skill.Content)
 	}
 	return sb.String()
 }
@@ -124,7 +124,7 @@ func buildToolSection(toolsRaw json.RawMessage) string {
 			Description string `json:"description"`
 		}
 		if json.Unmarshal(tool, &t) == nil && t.Name != "" {
-			sb.WriteString(fmt.Sprintf("- **%s**: %s\n", t.Name, t.Description))
+			fmt.Fprintf(&sb, "- **%s**: %s\n", t.Name, t.Description)
 		}
 	}
 	return sb.String()

@@ -11,13 +11,14 @@ import (
 func makeEvents(count int) []*domain.Event {
 	events := make([]*domain.Event, 0, count)
 	for i := 0; i < count; i++ {
-		if i%3 == 0 {
+		switch i % 3 {
+		case 0:
 			events = append(events, makeEvent(domain.EventTypeUserMessage,
 				`{"content":[{"type":"text","text":"`+strings.Repeat("x", 200)+`"}]}`))
-		} else if i%3 == 1 {
+		case 1:
 			events = append(events, makeEvent(domain.EventTypeAgentMessage,
 				`{"content":[{"type":"text","text":"`+strings.Repeat("y", 200)+`"}]}`))
-		} else {
+		default:
 			events = append(events, makeEvent(domain.EventTypeAgentToolResult,
 				`{"tool_use_id":"t`+json.Number(string(rune('0'+i))).String()+`","content":"`+strings.Repeat("z", 500)+`"}`))
 		}

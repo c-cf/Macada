@@ -245,7 +245,7 @@ func (h *SkillHandler) parseZipUpload(r *http.Request) (service.ParsedSkill, jso
 	if err != nil {
 		return service.ParsedSkill{}, nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := io.ReadAll(file)
 	if err != nil {

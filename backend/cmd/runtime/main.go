@@ -52,7 +52,7 @@ func main() {
 	defer rep.Close()
 
 	// Report startup
-	rep.Report(context.Background(), "runtime.started", map[string]string{
+	_ = rep.Report(context.Background(), "runtime.started", map[string]string{
 		"agent_id":   cfg.Agent.ID,
 		"session_id": cfg.Agent.SessionID,
 	})
@@ -86,7 +86,7 @@ func main() {
 	if hasPackages(cfg.Packages) {
 		log.Info().Msg("installing packages...")
 		installPackages(cfg.Packages)
-		rep.Report(context.Background(), "runtime.packages_installed", nil)
+		_ = rep.Report(context.Background(), "runtime.packages_installed", nil)
 	}
 
 	log.Info().Msg("runtime ready")
@@ -94,7 +94,7 @@ func main() {
 	<-done
 	log.Info().Msg("shutting down...")
 
-	rep.Report(context.Background(), "runtime.stopped", nil)
+	_ = rep.Report(context.Background(), "runtime.stopped", nil)
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

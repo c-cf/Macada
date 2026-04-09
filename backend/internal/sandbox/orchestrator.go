@@ -82,7 +82,7 @@ func (o *Orchestrator) Run(ctx context.Context, sessionID string, events []domai
 	bgCtx := context.Background()
 
 	// Update session status
-	o.sessionRepo.UpdateStatus(bgCtx, sessionID, domain.SessionStatusRunning)
+	_ = o.sessionRepo.UpdateStatus(bgCtx, sessionID, domain.SessionStatusRunning)
 	o.emitEvent(bgCtx, sessionID, domain.EventTypeSessionRunning, nil)
 
 	// Ensure sandbox is running
@@ -121,7 +121,7 @@ func (o *Orchestrator) buildForwardPayload(ctx context.Context, sessionID string
 	var existingMemory *rtctx.SessionMemory
 	if len(session.Memory) > 0 && string(session.Memory) != "{}" {
 		existingMemory = &rtctx.SessionMemory{}
-		json.Unmarshal(session.Memory, existingMemory)
+		_ = json.Unmarshal(session.Memory, existingMemory)
 	}
 
 	// Fetch all session events from DB
@@ -147,7 +147,7 @@ func (o *Orchestrator) buildForwardPayload(ctx context.Context, sessionID string
 	if compressResult.Memory != nil && compressResult.Tier >= 2 {
 		memJSON, err := json.Marshal(compressResult.Memory)
 		if err == nil {
-			o.sessionRepo.UpdateMemory(ctx, sessionID, memJSON)
+			_ = o.sessionRepo.UpdateMemory(ctx, sessionID, memJSON)
 		}
 		log.Info().
 			Str("session_id", sessionID).
@@ -164,7 +164,7 @@ func (o *Orchestrator) buildForwardPayload(ctx context.Context, sessionID string
 	var agentSnap struct {
 		Model domain.ModelConfig `json:"model"`
 	}
-	json.Unmarshal(session.Agent, &agentSnap)
+	_ = json.Unmarshal(session.Agent, &agentSnap)
 
 	return &ForwardPayload{
 		Memory:            compressResult.Memory,
@@ -186,10 +186,10 @@ func toNewEvents(events []domain.SendEventParams) []NewEvent {
 // contextWindowForModel returns the context window size for a given model.
 func contextWindowForModel(modelID string) int {
 	// Default context windows for known models
-	switch {
-	case modelID == "claude-opus-4-6" || modelID == "claude-sonnet-4-6":
+	switch modelID {
+	case "claude-opus-4-6", "claude-sonnet-4-6":
 		return 200_000
-	case modelID == "claude-haiku-4-5":
+	case "claude-haiku-4-5":
 		return 200_000
 	default:
 		return 200_000
@@ -210,7 +210,7 @@ func (o *Orchestrator) Teardown(ctx context.Context, sessionID string) error {
 	}
 
 	log.Info().Str("session_id", sessionID).Str("container", sbx.ContainerID).Msg("tearing down sandbox")
-	o.docker.Stop(ctx, sbx.ContainerID)
+	_ = o.docker.Stop(ctx, sbx.ContainerID)
 	return o.docker.Remove(ctx, sbx.ContainerID)
 }
 
@@ -265,7 +265,7 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		}
 		files := map[string]string{}
 		if len(skill.Files) > 0 && string(skill.Files) != "{}" {
-			json.Unmarshal(skill.Files, &files)
+			_ = json.Unmarshal(skill.Files, &files)
 		}
 		skills = append(skills, SkillManifest{
 			Name:        skill.Name,
@@ -316,21 +316,21 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 	// 2. Deploy config files BEFORE starting (runtime reads config on boot)
 	configFiles := o.buildConfigTar(manifest)
 	if err := o.docker.CopyToContainer(ctx, containerID, "/workspace", configFiles); err != nil {
-		o.docker.Remove(ctx, containerID)
+		_ = o.docker.Remove(ctx, containerID)
 		return nil, fmt.Errorf("deploy config: %w", err)
 	}
 
 	// 3. Start container (runtime can now read config immediately)
 	info, err := o.docker.Start(ctx, containerID)
 	if err != nil {
-		o.docker.Remove(ctx, containerID)
+		_ = o.docker.Remove(ctx, containerID)
 		return nil, fmt.Errorf("start container: %w", err)
 	}
 
 	// 4. Wait for runtime health
 	runtimeURL := fmt.Sprintf("http://%s:%d", info.IP, runtimePort)
 	if err := o.waitForHealth(ctx, runtimeURL); err != nil {
-		o.docker.Remove(ctx, containerID)
+		_ = o.docker.Remove(ctx, containerID)
 		return nil, fmt.Errorf("runtime not healthy: %w", err)
 	}
 
@@ -412,7 +412,7 @@ func (o *Orchestrator) waitForHealth(ctx context.Context, runtimeURL string) err
 	for time.Now().Before(deadline) {
 		resp, err := client.Get(healthURL)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				return nil
 			}
@@ -447,7 +447,7 @@ func (o *Orchestrator) forwardPayload(ctx context.Context, sbx *SandboxInfo, pay
 	if err != nil {
 		return fmt.Errorf("forward payload: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("runtime returned %d", resp.StatusCode)
@@ -472,6 +472,6 @@ func (o *Orchestrator) emitEvent(ctx context.Context, sessionID, eventType strin
 		Payload:     payloadJSON,
 	}
 
-	o.eventRepo.Create(ctx, evt)
-	o.eventBus.Publish(ctx, sessionID, evt)
+	_ = o.eventRepo.Create(ctx, evt)
+	_ = o.eventBus.Publish(ctx, sessionID, evt)
 }
