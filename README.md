@@ -1,6 +1,6 @@
 # Macada
 
-An open-source, self-hosted implementation inspired by [Anthropic's Managed Agents API](https://docs.anthropic.com/en/docs/agents/managed-agents). Define agents with custom system prompts, tools, and MCP servers, then run them in isolated sandboxed environments with full session lifecycle management.
+An open-source, self-hosted implementation inspired by [Anthropic's Managed Agents API](https://platform.claude.com/docs/en/managed-agents/overview). Define agents with custom system prompts, tools, and MCP servers, then run them in isolated sandboxed environments with full session lifecycle management.
 
 ## Architecture
 
