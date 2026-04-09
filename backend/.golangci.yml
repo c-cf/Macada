@@ -1,0 +1,42 @@
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - gosimple
+    - ineffassign
+    - typecheck
+    - gocritic
+    - gosec
+    - prealloc
+    - unconvert
+    - unparam
+    - misspell
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+    disabled-checks:
+      - hugeParam  # allow large structs by value where convenient
+  gosec:
+    excludes:
+      - G104  # unhandled errors on deferred Close — too noisy
+  misspell:
+    locale: US
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Test files can use dot imports and have long functions
+    - path: _test\.go
+      linters:
+        - gosec
+        - unparam

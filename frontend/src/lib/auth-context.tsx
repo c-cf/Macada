@@ -4,7 +4,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -28,42 +27,53 @@ type AuthContextValue = AuthState & AuthActions;
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function loadStoredAuth(): {
+  token: string | null;
+  user: User | null;
+  workspaces: WorkspaceInfo[];
+  activeWorkspaceId: string | null;
+} {
+  if (typeof window === "undefined") {
+    return { token: null, user: null, workspaces: [], activeWorkspaceId: null };
+  }
+  const savedToken = localStorage.getItem("token");
+  const savedUser = localStorage.getItem("user");
+  const savedWorkspaces = localStorage.getItem("workspaces");
+  const savedWsId = localStorage.getItem("workspace_id");
+
+  if (savedToken && savedUser) {
+    try {
+      return {
+        token: savedToken,
+        user: JSON.parse(savedUser),
+        workspaces: savedWorkspaces ? JSON.parse(savedWorkspaces) : [],
+        activeWorkspaceId: savedWsId,
+      };
+    } catch {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("workspaces");
+      localStorage.removeItem("workspace_id");
+    }
+  }
+  return { token: null, user: null, workspaces: [], activeWorkspaceId: null };
+}
+
 export function AuthProvider({
   children,
 }: {
   readonly children: React.ReactNode;
 }) {
-  const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
-    null
+  const [stored] = useState(loadStoredAuth);
+  const [token, setToken] = useState<string | null>(stored.token);
+  const [user, setUser] = useState<User | null>(stored.user);
+  const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>(
+    stored.workspaces
   );
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Restore from localStorage on mount
-  useEffect(() => {
-    const savedToken = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
-    const savedWorkspaces = localStorage.getItem("workspaces");
-    const savedWsId = localStorage.getItem("workspace_id");
-
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-        setWorkspaces(savedWorkspaces ? JSON.parse(savedWorkspaces) : []);
-        setActiveWorkspaceId(savedWsId);
-      } catch {
-        // Corrupted storage — clear it
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        localStorage.removeItem("workspaces");
-        localStorage.removeItem("workspace_id");
-      }
-    }
-    setIsLoading(false);
-  }, []);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(
+    stored.activeWorkspaceId
+  );
+  const isLoading = false;
 
   const setAuth = useCallback(
     (newToken: string, newUser: User, newWorkspaces: WorkspaceInfo[]) => {
