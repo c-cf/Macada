@@ -3,6 +3,7 @@ package loop
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -76,6 +77,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 	// Build system prompt with memory from backend
 	systemBlocks, err := l.buildSystemPromptWithMemory(ctx, input.Memory)
 	if err != nil {
+		l.reportError(ctx, "unknown_error", err.Error(), "exhausted")
 		return fmt.Errorf("build system prompt: %w", err)
 	}
 	apiSystem := toAPISystemBlocks(systemBlocks)
@@ -111,6 +113,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 				"is_error": true,
 				"error":    err.Error(),
 			})
+			l.reportAPIError(ctx, err)
 			return fmt.Errorf("api call: %w", err)
 		}
 
@@ -301,4 +304,48 @@ func toAPIMessages(msgs []rtctx.Message) []Message {
 		result = append(result, Message{Role: m.Role, Content: content})
 	}
 	return result
+}
+
+// reportAPIError classifies an API error and reports session.error + session.status_idle.
+func (l *Loop) reportAPIError(ctx context.Context, err error) {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		errorType := classifyAPIError(apiErr.StatusCode)
+		l.reportError(ctx, errorType, apiErr.Message, "exhausted")
+		return
+	}
+	l.reportError(ctx, "unknown_error", err.Error(), "exhausted")
+}
+
+// reportError sends a session.error event followed by session.status_idle with retries_exhausted.
+func (l *Loop) reportError(ctx context.Context, errorType, message, retryStatus string) {
+	l.reporter.Report(ctx, "session.error", map[string]interface{}{
+		"error": map[string]interface{}{
+			"type":    errorType,
+			"message": message,
+			"retry_status": map[string]string{
+				"type": retryStatus,
+			},
+		},
+	})
+
+	stopReason := "retries_exhausted"
+	if retryStatus == "terminal" {
+		stopReason = "terminal"
+	}
+	l.reporter.Report(ctx, "session.status_idle", map[string]interface{}{
+		"stop_reason": map[string]string{"type": stopReason},
+	})
+}
+
+// classifyAPIError maps HTTP status codes to API spec error types.
+func classifyAPIError(statusCode int) string {
+	switch statusCode {
+	case 429:
+		return "model_rate_limited_error"
+	case 529:
+		return "model_overloaded_error"
+	default:
+		return "model_request_failed_error"
+	}
 }

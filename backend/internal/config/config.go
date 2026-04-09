@@ -59,7 +59,7 @@ func Load() (*Config, error) {
 	}
 	dockerHost := os.Getenv("DOCKER_HOST")
 	if dockerHost == "" {
-		dockerHost = "http://localhost:2375"
+		dockerHost = "unix:///var/run/docker.sock"
 	}
 	networkName := os.Getenv("SANDBOX_NETWORK")
 	if networkName == "" {

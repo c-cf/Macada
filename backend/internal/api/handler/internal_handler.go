@@ -96,6 +96,12 @@ func (h *InternalHandler) IngestEvents(w http.ResponseWriter, r *http.Request) {
 		case domain.EventTypeSessionRunning:
 			h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusRunning)
 
+		case domain.EventTypeSessionTerminated:
+			h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusTerminated)
+
+		case domain.EventTypeSessionError:
+			log.Warn().Str("session_id", sessionID).RawJSON("error", ie.Payload).Msg("session error reported by runtime")
+
 		case "span.model_request_end":
 			h.recordAnalytics(r.Context(), sessionID, ie.Payload)
 		}

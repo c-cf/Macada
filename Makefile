@@ -1,16 +1,19 @@
 # Cross-platform: works on Linux (sh), Windows (cmd, powershell via GNU Make)
 # Requires: Docker, Go 1.21+, Node.js
 
-.PHONY: up down build backend-dev backend-test frontend-dev frontend-install clean
+.PHONY: up down build runtime-build backend-dev backend-test frontend-dev frontend-install clean
 
 # ---------------------------------------------------------------------------
 # Docker
 # ---------------------------------------------------------------------------
-up:
+up: runtime-build
 	docker compose up --build -d
 
 down:
 	docker compose down
+
+runtime-build:
+	docker compose --profile build build runtime
 
 # ---------------------------------------------------------------------------
 # Backend  (go -C avoids shell-specific `cd`)

@@ -298,9 +298,9 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		Packages:     env.Config.Packages,
 	}
 
-	// Create container
+	// 1. Create container (not started yet)
 	containerName := fmt.Sprintf("sandbox-%s", sessionID)
-	info, err := o.docker.CreateAndStart(ctx, CreateOpts{
+	containerID, err := o.docker.Create(ctx, CreateOpts{
 		Image:   o.config.RuntimeImage,
 		Name:    containerName,
 		Network: o.config.NetworkName,
@@ -313,24 +313,31 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		return nil, fmt.Errorf("create container: %w", err)
 	}
 
-	// Deploy config files into container
+	// 2. Deploy config files BEFORE starting (runtime reads config on boot)
 	configFiles := o.buildConfigTar(manifest)
-	if err := o.docker.CopyToContainer(ctx, info.ID, "/workspace", configFiles); err != nil {
-		o.docker.Remove(ctx, info.ID)
+	if err := o.docker.CopyToContainer(ctx, containerID, "/workspace", configFiles); err != nil {
+		o.docker.Remove(ctx, containerID)
 		return nil, fmt.Errorf("deploy config: %w", err)
 	}
 
-	// Wait for runtime health
+	// 3. Start container (runtime can now read config immediately)
+	info, err := o.docker.Start(ctx, containerID)
+	if err != nil {
+		o.docker.Remove(ctx, containerID)
+		return nil, fmt.Errorf("start container: %w", err)
+	}
+
+	// 4. Wait for runtime health
 	runtimeURL := fmt.Sprintf("http://%s:%d", info.IP, runtimePort)
 	if err := o.waitForHealth(ctx, runtimeURL); err != nil {
-		o.docker.Remove(ctx, info.ID)
+		o.docker.Remove(ctx, containerID)
 		return nil, fmt.Errorf("runtime not healthy: %w", err)
 	}
 
 	sbx := &SandboxInfo{
 		ID:          containerName,
 		SessionID:   sessionID,
-		ContainerID: info.ID,
+		ContainerID: containerID,
 		ContainerIP: info.IP,
 		Status:      SandboxStatusRunning,
 		CreatedAt:   time.Now().UTC(),

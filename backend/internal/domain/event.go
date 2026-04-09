@@ -23,6 +23,8 @@ const (
 
 	EventTypeSessionRunning      = "session.status_running"
 	EventTypeSessionIdle         = "session.status_idle"
+	EventTypeSessionError        = "session.error"
+	EventTypeSessionTerminated   = "session.status_terminated"
 
 	EventTypeRuntimeStarted          = "runtime.started"
 	EventTypeRuntimeStopped          = "runtime.stopped"

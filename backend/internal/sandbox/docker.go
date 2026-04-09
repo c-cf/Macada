@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -20,14 +21,35 @@ type DockerClient struct {
 }
 
 // NewDockerClient creates a client connecting to the Docker daemon.
-// socketPath defaults to "unix:///var/run/docker.sock" on Linux.
+// host supports both "unix:///var/run/docker.sock" and "http://host:port" formats.
 func NewDockerClient(host string) *DockerClient {
 	if host == "" {
-		host = "http://localhost:2375"
+		host = "unix:///var/run/docker.sock"
 	}
+
+	var httpClient *http.Client
+	var baseURL string
+
+	if strings.HasPrefix(host, "unix://") {
+		socketPath := strings.TrimPrefix(host, "unix://")
+		httpClient = &http.Client{
+			Timeout: 2 * time.Minute,
+			Transport: &http.Transport{
+				DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+					return net.DialTimeout("unix", socketPath, 5*time.Second)
+				},
+			},
+		}
+		// When using Unix socket, the host in URL is ignored but must be present.
+		baseURL = "http://localhost"
+	} else {
+		httpClient = &http.Client{Timeout: 2 * time.Minute}
+		baseURL = strings.TrimRight(host, "/")
+	}
+
 	return &DockerClient{
-		client:  &http.Client{Timeout: 2 * time.Minute},
-		baseURL: strings.TrimRight(host, "/"),
+		client:  httpClient,
+		baseURL: baseURL,
 	}
 }
 
@@ -49,9 +71,8 @@ type ContainerInfo struct {
 	Status string
 }
 
-// CreateAndStart creates and starts a container, returning its info.
-func (c *DockerClient) CreateAndStart(ctx context.Context, opts CreateOpts) (*ContainerInfo, error) {
-	// Create container
+// Create creates a container without starting it, returning the container ID.
+func (c *DockerClient) Create(ctx context.Context, opts CreateOpts) (string, error) {
 	createBody := map[string]interface{}{
 		"Image": opts.Image,
 		"Env":   opts.Env,
@@ -79,29 +100,27 @@ func (c *DockerClient) CreateAndStart(ctx context.Context, opts CreateOpts) (*Co
 
 	resp, err := c.doJSON(ctx, http.MethodPost, url, data)
 	if err != nil {
-		return nil, fmt.Errorf("create container: %w", err)
+		return "", fmt.Errorf("create container: %w", err)
 	}
 
 	var createResp struct {
 		ID string `json:"Id"`
 	}
 	if err := json.Unmarshal(resp, &createResp); err != nil {
-		return nil, fmt.Errorf("parse create response: %w", err)
+		return "", fmt.Errorf("parse create response: %w", err)
 	}
 
-	// Start container
-	startURL := fmt.Sprintf("%s/containers/%s/start", c.baseURL, createResp.ID)
+	return createResp.ID, nil
+}
+
+// Start starts a created container and returns its info.
+func (c *DockerClient) Start(ctx context.Context, containerID string) (*ContainerInfo, error) {
+	startURL := fmt.Sprintf("%s/containers/%s/start", c.baseURL, containerID)
 	if _, err := c.do(ctx, http.MethodPost, startURL, nil); err != nil {
 		return nil, fmt.Errorf("start container: %w", err)
 	}
 
-	// Inspect for IP
-	info, err := c.Inspect(ctx, createResp.ID)
-	if err != nil {
-		return nil, err
-	}
-
-	return info, nil
+	return c.Inspect(ctx, containerID)
 }
 
 // Inspect returns info about a container.

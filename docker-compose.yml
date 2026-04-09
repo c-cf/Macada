@@ -45,6 +45,10 @@ services:
       REDIS_URL: redis://redis:6379
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LOG_LEVEL: debug
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SANDBOX_NETWORK: managed-agents_internal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy
