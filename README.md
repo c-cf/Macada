@@ -1,6 +1,76 @@
+<div align="center">
+
 # Macada
 
-An open-source, self-hosted implementation inspired by [Anthropic's Managed Agents API](https://platform.claude.com/docs/en/managed-agents/overview). Define agents with custom system prompts, tools, and MCP servers, then run them in isolated sandboxed environments with full session lifecycle management.
+**The open-source Managed Agents platform.**
+
+Define agents with custom system prompts, tools, and MCP servers.<br/>
+Run them in isolated sandbox environments with full session lifecycle management.
+
+[![CI](https://github.com/cchu-code/managed-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/cchu-code/managed-agents/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
+
+[Quick Start](#quick-start) · [Architecture](#architecture) · [Contributing](#development)
+
+</div>
+
+---
+
+## What is Macada?
+
+Macada is a self-hosted implementation of [Anthropic's Managed Agents API](https://platform.claude.com/docs/en/managed-agents/overview). It gives you a full control plane for managing AI agents — define them once, run them anywhere, and inspect every step.
+
+Each session runs inside its own sandboxed container. Events stream in real time. Skills persist across runs. You get a dashboard, a REST API, and complete ownership of your data.
+
+No vendor lock-in. No usage caps. Just your agents, running the way you designed them.
+
+## Features
+
+- **Agent definitions** — configure system prompts, tools, and MCP servers in YAML. Version and update agents without interrupting active sessions.
+- **Isolated sandboxes** — every session spawns its own container from `Dockerfile.runtime`. Agents can't interfere with each other or the host.
+- **Real-time event streaming** — watch sessions unfold live via SSE. Every tool call, message, and error is captured and queryable.
+- **Skills library** — save reusable capabilities across your agent fleet. Skills accumulate and compound over time.
+- **Environment management** — separate network policies, secrets, and constraints per environment. Move agents from development to production without code changes.
+- **Analytics dashboard** — token usage, latency, session counts, and cost breakdown. Built-in, no third-party required.
+- **Full REST API** — everything the dashboard does, the API does too. Automate agent workflows from your own tooling.
+
+---
+
+## Quick Start
+
+**Prerequisites:** Docker & Docker Compose, an Anthropic API key.
+
+```bash
+# 1. Clone and configure
+git clone https://github.com/cchu-code/managed-agents.git
+cd managed-agents
+cp .env.example .env
+# Edit .env — set ANTHROPIC_API_KEY, ADMIN_SECRET, JWT_SECRET
+
+# 2. Start all services
+make up
+
+# 3. Open the dashboard
+open http://localhost:3000
+```
+
+The backend runs database migrations automatically on startup. The first time you visit, register an account via the UI or bootstrap your first workspace via the admin endpoint.
+
+### Environment variables
+
+| Variable              | Default | Description                                           |
+|-----------------------|---------|-------------------------------------------------------|
+| `ANTHROPIC_API_KEY`   | —       | **Required.** Your Anthropic API key                  |
+| `ADMIN_SECRET`        | —       | **Required.** Secret for the bootstrap admin endpoint |
+| `JWT_SECRET`          | —       | **Required.** Secret for signing user login tokens    |
+| `BACKEND_PORT`        | `8080`  | Backend API port                                      |
+| `FRONTEND_PORT`       | `3000`  | Frontend dashboard port                               |
+| `EXTERNAL_DB_PORT`    | `15432` | PostgreSQL port exposed to host (for GUI tools)       |
+| `EXTERNAL_REDIS_PORT` | `16379` | Redis port exposed to host (for debugging)            |
+
+---
 
 ## Architecture
 
@@ -11,131 +81,69 @@ An open-source, self-hosted implementation inspired by [Anthropic's Managed Agen
               ┌───────────┐
               │  Frontend  │  Next.js 15 / React 19
               └─────┬─────┘
-                    │
+                    │ REST / SSE
                     ▼
-              ┌───────────┐     ┌─────────────────────┐
-              │  Backend   │────▶│  Runtime (per-session)│
-              │ Control    │◀────│  Sandbox container    │
-              │ Plane      │     └─────────────────────┘
+              ┌───────────┐     ┌───────────────────────┐
+              │  Backend   │────▶│  Runtime (per-session) │
+              │ Control    │◀────│  Sandbox container     │
+              │  Plane     │     └───────────────────────┘
               └──┬────┬────┘
                  │    │
           ┌──────┘    └──────┐
           ▼                  ▼
     ┌──────────┐       ┌──────────┐
     │PostgreSQL│       │  Redis   │
-    │  16      │       │  7       │
+    │    16    │       │    7     │
     └──────────┘       └──────────┘
 ```
 
-- **Control Plane** — Go API server managing agents, sessions, environments, skills, and events
-- **Runtime** — Per-session sandboxed container running the agent loop (built from `Dockerfile.runtime`)
-- **Frontend** — Dashboard for monitoring agents, sessions, environments, and analytics
-- **PostgreSQL** — Persistent storage for all resources
-- **Redis** — Pub/sub for real-time SSE event streaming
+| Layer        | Stack                                       |
+|--------------|---------------------------------------------|
+| Frontend     | Next.js 15, React 19, Tailwind CSS 4        |
+| Backend      | Go, chi router, sqlc, PostgreSQL 16, Redis 7|
+| Agent Runtime| Per-session Docker containers               |
+| Infra        | Docker Compose, multi-stage builds          |
 
-## Tech Stack
+**Control Plane** — Go API server managing agents, sessions, environments, skills, and events.
 
-| Layer    | Technology                          |
-|----------|-------------------------------------|
-| Backend  | Go, chi, PostgreSQL 16, Redis 7     |
-| Frontend | Next.js 15, React 19, Tailwind CSS 4|
-| Infra    | Docker Compose, multi-stage builds  |
+**Runtime** — Each session spawns a dedicated container running the agent loop (`Dockerfile.runtime`). Containers are isolated from each other and from the host network.
 
-## Prerequisites
+**Frontend** — Dashboard for creating agents, monitoring sessions, browsing events, and viewing analytics.
 
-- Docker & Docker Compose
-- An Anthropic API key
-
-## Quick Start
-
-```bash
-# 1. Configure environment
-cp .env.example .env
-# Edit .env and set your ANTHROPIC_API_KEY
-
-# 2. Start all services
-make up
-
-# 3. Open the dashboard
-# http://localhost:3000
-```
-
-The backend runs database migrations automatically on startup.
-
-## Configuration
-
-All configuration is done via environment variables. See `.env.example`:
-
-| Variable              | Default | Description                                  |
-|-----------------------|---------|----------------------------------------------|
-| `ANTHROPIC_API_KEY`   | —       | **Required.** Your Anthropic API key         |
-| `BACKEND_PORT`        | 8080    | Backend API port                             |
-| `FRONTEND_PORT`       | 3000    | Frontend dashboard port                      |
-| `EXTERNAL_DB_PORT`    | 15432   | PostgreSQL port exposed to host (for GUI tools) |
-| `EXTERNAL_REDIS_PORT` | 16379   | Redis port exposed to host (for debugging)   |
-
-## API
-
-Base URL: `http://localhost:8080/v1`
-
-| Method   | Endpoint                                   | Description              |
-|----------|--------------------------------------------|--------------------------|
-| `POST`   | `/environments`                            | Create environment       |
-| `GET`    | `/environments`                            | List environments        |
-| `GET`    | `/environments/{id}`                       | Get environment          |
-| `POST`   | `/environments/{id}`                       | Update environment       |
-| `DELETE` | `/environments/{id}`                       | Delete environment       |
-| `POST`   | `/skills`                                  | Create skill             |
-| `GET`    | `/skills`                                  | List skills              |
-| `GET`    | `/skills/{id}`                             | Get skill                |
-| `POST`   | `/skills/{id}`                             | Update skill             |
-| `DELETE` | `/skills/{id}`                             | Delete skill             |
-| `POST`   | `/agents`                                  | Create agent             |
-| `GET`    | `/agents`                                  | List agents              |
-| `GET`    | `/agents/{id}`                             | Get agent                |
-| `POST`   | `/agents/{id}`                             | Update agent             |
-| `POST`   | `/agents/{id}/archive`                     | Archive agent            |
-| `POST`   | `/sessions`                                | Create session           |
-| `GET`    | `/sessions`                                | List sessions            |
-| `GET`    | `/sessions/{id}`                           | Get session              |
-| `POST`   | `/sessions/{id}/archive`                   | Archive session          |
-| `POST`   | `/sessions/{id}/events`                    | Send event to session    |
-| `GET`    | `/sessions/{id}/events`                    | List session events      |
-| `GET`    | `/sessions/{id}/events/stream`             | SSE event stream         |
-| `GET`    | `/analytics/usage`                         | Usage analytics          |
-| `GET`    | `/analytics/logs`                          | Analytics logs           |
+---
 
 ## Development
 
-### Full stack (Docker)
+**Prerequisites:** [Go](https://go.dev/) 1.21+, [Node.js](https://nodejs.org/) 20+, [Docker](https://www.docker.com/)
+
+### Full stack
 
 ```bash
-make up       # Start all services
+make up       # Build and start all services (Docker)
 make down     # Stop all services
 ```
 
 ### Backend only
 
 ```bash
-cd backend
-make dev          # Run with hot reload
-make test         # Run tests with race detection
-make migrate-up   # Run database migrations
-make tidy         # go mod tidy
+make backend-dev          # Run with live reload
+make backend-test         # Run tests with race detection
+make backend-migrate-up   # Apply database migrations
+make backend-tidy         # go mod tidy
 ```
 
 ### Frontend only
 
 ```bash
-cd frontend
-npm install
-npm run dev       # http://localhost:3000
+make frontend-install     # Install dependencies
+make frontend-dev         # Start dev server at http://localhost:3000
+make frontend-build       # Production build
 ```
 
-## Project Structure
+### Project structure
 
 ```
-Macada/
+macada/
 ├── backend/
 │   ├── cmd/
 │   │   ├── server/        # Control plane entrypoint
@@ -160,6 +168,8 @@ Macada/
 ├── Makefile
 └── .env.example
 ```
+
+---
 
 ## License
 
