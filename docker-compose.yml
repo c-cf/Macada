@@ -1,3 +1,5 @@
+name: macada
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -46,7 +48,7 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LOG_LEVEL: debug
       DOCKER_HOST: unix:///var/run/docker.sock
-      SANDBOX_NETWORK: managed-agents_internal
+      SANDBOX_NETWORK: macada_internal
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:

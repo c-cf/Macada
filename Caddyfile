@@ -1,0 +1,19 @@
+# Managed Agents — Caddyfile
+#
+# Traffic routing:
+#   {$DOMAIN}      → frontend:3000   (UI)
+#   api.{$DOMAIN}  → backend:8080    (REST API)
+#
+# TLS:
+#   Caddy automatically provisions Let's Encrypt certificates for real domains.
+#   For localhost development use the dev compose (docker-compose.yml) instead.
+#
+# Set DOMAIN via the `environment:` block in docker-compose.prod.yml or .env.prod.
+
+{$DOMAIN} {
+    reverse_proxy frontend:3000
+}
+
+api.{$DOMAIN} {
+    reverse_proxy backend:8080
+}

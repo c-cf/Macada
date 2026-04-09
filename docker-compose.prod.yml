@@ -1,0 +1,124 @@
+# Production Docker Compose
+#
+# Quick start:
+#   cp .env.prod.example .env.prod
+#   # Edit .env.prod — at minimum set DOMAIN, POSTGRES_PASSWORD, ANTHROPIC_API_KEY
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# Architecture:
+#   Caddy (80/443) → frontend:3000  (all traffic on DOMAIN)
+#                  → backend:8080   (all traffic on api.DOMAIN)
+#
+# Images:
+#   backend/runtime: pulled from ghcr.io (no baked-in env)
+#   frontend:        built locally so NEXT_PUBLIC_API_URL is embedded at build time
+
+name: macada
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-managed_agents}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:-managed_agents}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-managed_agents}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  backend:
+    image: ${BACKEND_IMAGE:-ghcr.io/cchu-code/macada/backend:latest}
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      DATABASE_URL: >-
+        postgres://${POSTGRES_USER:-managed_agents}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-managed_agents}?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required — set it in .env.prod}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SANDBOX_NETWORK: ${COMPOSE_PROJECT_NAME:-macada}_internal
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["/bin/sh", "-c", "/server -migrate-up && /server"]
+    networks:
+      - internal
+
+  frontend:
+    # Frontend is built locally so NEXT_PUBLIC_API_URL is baked in at build time.
+    # To use a pre-built ghcr image instead, replace `build:` with:
+    #   image: ghcr.io/cchu-code/macada/frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://api.${DOMAIN:-localhost}}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - internal
+
+  # Runtime image — not a running service; instantiated per session by the backend.
+  # This entry ensures the image is available locally before first use.
+  runtime:
+    image: ${RUNTIME_IMAGE:-ghcr.io/cchu-code/macada/runtime:latest}
+    profiles: ["init"]
+    command: ["true"]   # exits immediately after pulling
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

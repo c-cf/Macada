@@ -3,6 +3,11 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Accept API base URL at build time (required for production; client-side env vars are baked in).
+# Example: docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com .
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 COPY package.json ./
 RUN npm install
 
