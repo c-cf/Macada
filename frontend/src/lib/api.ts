@@ -229,6 +229,24 @@ export function updateEnvironment(
   return postJSON(`/v1/environments/${id}`, body);
 }
 
+// ── Sessions (create / events) ──────────────────────────────────────────
+
+export function createSession(body: {
+  agent: string | { id: string; type: "agent"; version?: number };
+  environment_id: string;
+  title?: string;
+  metadata?: Record<string, string>;
+}): Promise<Session> {
+  return postJSON("/v1/sessions", body);
+}
+
+export function sendSessionEvents(
+  sessionId: string,
+  events: readonly { type: string; content?: string; [key: string]: unknown }[]
+): Promise<unknown> {
+  return postJSON(`/v1/sessions/${sessionId}/events`, { events });
+}
+
 // ── Analytics ────────────────────────────────────────────────────────────
 
 export function getUsage(params: {

@@ -15,6 +15,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   {
     label: "Agents",
     children: [
+      { label: "Quick Start", href: "/quick-start" },
       { label: "Agents", href: "/agents" },
       { label: "Sessions", href: "/sessions" },
       { label: "Environments", href: "/environments" },
