@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
 

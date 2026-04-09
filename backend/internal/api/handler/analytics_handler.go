@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/cchu-code/managed-agents/internal/infra/postgres"
+	"github.com/c-cf/macada/internal/infra/postgres"
 )
 
 // AnalyticsHandler serves analytics API endpoints.

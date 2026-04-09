@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	"github.com/cchu-code/managed-agents/pkg/sse"
+	"github.com/c-cf/macada/internal/domain"
+	"github.com/c-cf/macada/pkg/sse"
 	"github.com/go-chi/chi/v5"
 )
 

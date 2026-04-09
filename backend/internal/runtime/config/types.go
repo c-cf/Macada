@@ -3,8 +3,8 @@ package config
 import (
 	"encoding/json"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	svcctx "github.com/cchu-code/managed-agents/internal/runtime/context"
+	"github.com/c-cf/macada/internal/domain"
+	svcctx "github.com/c-cf/macada/internal/runtime/context"
 )
 
 // RuntimeConfig is the aggregate config loaded from sandbox filesystem.

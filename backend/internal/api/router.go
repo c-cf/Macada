@@ -3,9 +3,9 @@ package api
 import (
 	"net/http"
 
-	"github.com/cchu-code/managed-agents/internal/api/handler"
-	authmw "github.com/cchu-code/managed-agents/internal/api/middleware"
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/api/handler"
+	authmw "github.com/c-cf/macada/internal/api/middleware"
+	"github.com/c-cf/macada/internal/domain"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

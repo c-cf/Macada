@@ -1,7 +1,7 @@
 package context
 
 import (
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 const (

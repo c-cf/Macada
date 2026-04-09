@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	svcctx "github.com/cchu-code/managed-agents/internal/runtime/context"
+	"github.com/c-cf/macada/internal/domain"
+	svcctx "github.com/c-cf/macada/internal/runtime/context"
 )
 
 func TestDeploy_BasicAgent(t *testing.T) {

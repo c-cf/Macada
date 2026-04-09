@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	"github.com/cchu-code/managed-agents/internal/infra/postgres"
-	rtctx "github.com/cchu-code/managed-agents/internal/runtime/context"
+	"github.com/c-cf/macada/internal/domain"
+	"github.com/c-cf/macada/internal/infra/postgres"
+	rtctx "github.com/c-cf/macada/internal/runtime/context"
 	"github.com/rs/zerolog/log"
 )
 

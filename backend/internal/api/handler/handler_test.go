@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/api"
-	"github.com/cchu-code/managed-agents/internal/api/handler"
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/api"
+	"github.com/c-cf/macada/internal/api/handler"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 // ---------------------------------------------------------------------------

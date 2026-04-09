@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	"github.com/cchu-code/managed-agents/internal/service"
+	"github.com/c-cf/macada/internal/domain"
+	"github.com/c-cf/macada/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 

@@ -3,7 +3,7 @@ package context
 import (
 	"encoding/json"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 // EventsToMessages converts stored events into Anthropic Messages API format.

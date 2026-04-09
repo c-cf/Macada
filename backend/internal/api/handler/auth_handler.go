@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"github.com/cchu-code/managed-agents/internal/api/middleware"
-	"github.com/cchu-code/managed-agents/internal/service"
+	"github.com/c-cf/macada/internal/api/middleware"
+	"github.com/c-cf/macada/internal/service"
 )
 
 type AuthHandler struct {

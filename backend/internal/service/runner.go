@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"time"
 
-	svcctx "github.com/cchu-code/managed-agents/internal/runtime/context"
-	"github.com/cchu-code/managed-agents/internal/runtime/prompt"
+	svcctx "github.com/c-cf/macada/internal/runtime/context"
+	"github.com/c-cf/macada/internal/runtime/prompt"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	"github.com/cchu-code/managed-agents/internal/infra/postgres"
+	"github.com/c-cf/macada/internal/domain"
+	"github.com/c-cf/macada/internal/infra/postgres"
 	"github.com/rs/zerolog/log"
 )
 

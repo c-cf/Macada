@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 func makeEvent(typ string, payload string) *domain.Event {

@@ -7,7 +7,7 @@
 Define agents with custom system prompts, tools, and MCP servers.<br/>
 Run them in isolated sandbox environments with full session lifecycle management.
 
-[![CI](https://github.com/cchu-code/managed-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/cchu-code/managed-agents/actions/workflows/ci.yml)
+[![CI](https://github.com/c-cf/Macada/actions/workflows/ci.yml/badge.svg)](https://github.com/c-cf/Macada/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://go.dev/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
@@ -44,8 +44,8 @@ No vendor lock-in. No usage caps. Just your agents, running the way you designed
 
 ```bash
 # 1. Clone and configure
-git clone https://github.com/cchu-code/managed-agents.git
-cd managed-agents
+git clone https://github.com/c-cf/Macada.git
+cd Macada
 cp .env.example .env
 # Edit .env — set ANTHROPIC_API_KEY, ADMIN_SECRET, JWT_SECRET
 

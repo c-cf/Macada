@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	"github.com/cchu-code/managed-agents/pkg/pagination"
+	"github.com/c-cf/macada/internal/domain"
+	"github.com/c-cf/macada/pkg/pagination"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

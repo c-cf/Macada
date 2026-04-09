@@ -1,4 +1,4 @@
-module github.com/cchu-code/managed-agents
+module github.com/c-cf/macada
 
 go 1.25.0
 

@@ -3,7 +3,7 @@ package sandbox
 import (
 	"encoding/json"
 
-	rtctx "github.com/cchu-code/managed-agents/internal/runtime/context"
+	rtctx "github.com/c-cf/macada/internal/runtime/context"
 )
 
 // ForwardPayload is the data sent from the control plane to the runtime sandbox.

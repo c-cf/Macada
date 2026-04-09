@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 	"github.com/go-chi/chi/v5"
 )
 

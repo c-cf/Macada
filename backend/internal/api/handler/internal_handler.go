@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
-	"github.com/cchu-code/managed-agents/internal/infra/postgres"
-	"github.com/cchu-code/managed-agents/internal/sandbox"
+	"github.com/c-cf/macada/internal/domain"
+	"github.com/c-cf/macada/internal/infra/postgres"
+	"github.com/c-cf/macada/internal/sandbox"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )

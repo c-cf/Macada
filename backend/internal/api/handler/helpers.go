@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/cchu-code/managed-agents/internal/api/middleware"
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/api/middleware"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 func writeJSON(w http.ResponseWriter, status int, v interface{}) {

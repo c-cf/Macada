@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

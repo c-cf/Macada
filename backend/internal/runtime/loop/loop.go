@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	rtcfg "github.com/cchu-code/managed-agents/internal/runtime/config"
-	rtctx "github.com/cchu-code/managed-agents/internal/runtime/context"
-	"github.com/cchu-code/managed-agents/internal/runtime/prompt"
-	"github.com/cchu-code/managed-agents/internal/runtime/reporter"
+	rtcfg "github.com/c-cf/macada/internal/runtime/config"
+	rtctx "github.com/c-cf/macada/internal/runtime/context"
+	"github.com/c-cf/macada/internal/runtime/prompt"
+	"github.com/c-cf/macada/internal/runtime/reporter"
 	"github.com/rs/zerolog/log"
 )
 

@@ -20,13 +20,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-managed_agents}
+      POSTGRES_USER: ${POSTGRES_USER:-macada}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — set it in .env.prod}
-      POSTGRES_DB: ${POSTGRES_DB:-managed_agents}
+      POSTGRES_DB: ${POSTGRES_DB:-macada}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-managed_agents}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-macada}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,7 +53,7 @@ services:
     environment:
       PORT: 8080
       DATABASE_URL: >-
-        postgres://${POSTGRES_USER:-managed_agents}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-managed_agents}?sslmode=disable
+        postgres://${POSTGRES_USER:-macada}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-macada}?sslmode=disable
       REDIS_URL: redis://redis:6379
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?ANTHROPIC_API_KEY is required — set it in .env.prod}
       LOG_LEVEL: ${LOG_LEVEL:-info}

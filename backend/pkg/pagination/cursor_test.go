@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cchu-code/managed-agents/pkg/pagination"
+	"github.com/c-cf/macada/pkg/pagination"
 )
 
 func TestCursorRoundtrip(t *testing.T) {

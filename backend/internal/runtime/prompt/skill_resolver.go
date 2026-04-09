@@ -3,7 +3,7 @@ package prompt
 import (
 	"context"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 	"github.com/rs/zerolog/log"
 )
 

@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	rtcfg "github.com/cchu-code/managed-agents/internal/runtime/config"
-	rtctx "github.com/cchu-code/managed-agents/internal/runtime/context"
-	"github.com/cchu-code/managed-agents/internal/runtime/loop"
-	"github.com/cchu-code/managed-agents/internal/runtime/reporter"
-	rt "github.com/cchu-code/managed-agents/internal/runtime"
+	rtcfg "github.com/c-cf/macada/internal/runtime/config"
+	rtctx "github.com/c-cf/macada/internal/runtime/context"
+	"github.com/c-cf/macada/internal/runtime/loop"
+	"github.com/c-cf/macada/internal/runtime/reporter"
+	rt "github.com/c-cf/macada/internal/runtime"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )

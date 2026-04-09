@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 func makeEvents(count int) []*domain.Event {

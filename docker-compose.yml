@@ -4,9 +4,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: managed_agents
-      POSTGRES_PASSWORD: managed_agents
-      POSTGRES_DB: managed_agents
+      POSTGRES_USER: macada
+      POSTGRES_PASSWORD: macada
+      POSTGRES_DB: macada
     ports:
       # Optional: expose to host for GUI tools (DBeaver etc.)
       # Default 15432 to avoid collision with local PostgreSQL on 5432
@@ -14,7 +14,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U managed_agents"]
+      test: ["CMD-SHELL", "pg_isready -U macada"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -43,7 +43,7 @@ services:
     environment:
       PORT: 8080
       # Internal network: use service name 'postgres', not localhost
-      DATABASE_URL: postgres://managed_agents:managed_agents@postgres:5432/managed_agents?sslmode=disable
+      DATABASE_URL: postgres://macada:macada@postgres:5432/macada?sslmode=disable
       REDIS_URL: redis://redis:6379
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       LOG_LEVEL: debug

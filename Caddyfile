@@ -1,4 +1,4 @@
-# Managed Agents — Caddyfile
+# Macada — Caddyfile
 #
 # Traffic routing:
 #   {$DOMAIN}      → frontend:3000   (UI)

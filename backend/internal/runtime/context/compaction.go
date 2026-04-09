@@ -1,7 +1,7 @@
 package context
 
 import (
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 // Compact reduces a conversation to a summary plus the most recent N events.

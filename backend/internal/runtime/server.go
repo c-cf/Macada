@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"sync"
 
-	rtctx "github.com/cchu-code/managed-agents/internal/runtime/context"
-	"github.com/cchu-code/managed-agents/internal/runtime/loop"
+	rtctx "github.com/c-cf/macada/internal/runtime/context"
+	"github.com/c-cf/macada/internal/runtime/loop"
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog/log"
 )

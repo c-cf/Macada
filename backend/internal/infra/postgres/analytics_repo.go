@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cchu-code/managed-agents/pkg/pagination"
+	"github.com/c-cf/macada/pkg/pagination"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 

@@ -32,6 +32,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ghcr.io requires fully-lowercase image names
+      - name: Compute lowercase image base
+        id: image
+        run: echo "base=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -46,7 +51,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/${{ matrix.image-suffix }}
+          images: ${{ steps.image.outputs.base }}/${{ matrix.image-suffix }}
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
@@ -59,5 +64,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.image-suffix }}:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}/${{ matrix.image-suffix }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ steps.image.outputs.base }}/${{ matrix.image-suffix }}:buildcache
+          cache-to: type=registry,ref=${{ steps.image.outputs.base }}/${{ matrix.image-suffix }}:buildcache,mode=max

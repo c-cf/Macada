@@ -3,7 +3,7 @@ package context
 import (
 	"encoding/json"
 
-	"github.com/cchu-code/managed-agents/internal/domain"
+	"github.com/c-cf/macada/internal/domain"
 )
 
 // ThinEvents returns a new slice of events with old tool_result payloads replaced.
