@@ -1,6 +1,6 @@
-# Managed Agents
+# Macada
 
-A self-hosted platform for deploying and managing AI agents. Define agents with custom system prompts, tools, and MCP servers, then run them in isolated sandboxed environments with full session lifecycle management.
+An open-source, self-hosted implementation inspired by [Anthropic's Managed Agents API](https://docs.anthropic.com/en/docs/agents/managed-agents). Define agents with custom system prompts, tools, and MCP servers, then run them in isolated sandboxed environments with full session lifecycle management.
 
 ## Architecture
 
@@ -135,7 +135,7 @@ npm run dev       # http://localhost:3000
 ## Project Structure
 
 ```
-managed-agents/
+Macada/
 ├── backend/
 │   ├── cmd/
 │   │   ├── server/        # Control plane entrypoint
