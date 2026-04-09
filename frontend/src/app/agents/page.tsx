@@ -2,59 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { listAgents } from "@/lib/api";
+import { listAgents, archiveAgent } from "@/lib/api";
 import type { Agent } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { DataTable, Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/status-badge";
 import { ErrorMessage } from "@/components/error-message";
 import { CreateAgentDialog } from "@/components/create-agent-dialog";
+import { RowActionsMenu } from "@/components/row-actions-menu";
 import { timeAgo, truncateId, getAgentStatus } from "@/lib/utils";
-
-const COLUMNS: readonly Column<Agent>[] = [
-  {
-    key: "id",
-    header: "ID",
-    render: (agent) => (
-      <span className="font-mono text-xs text-muted-foreground">
-        {truncateId(agent.id)}
-      </span>
-    ),
-  },
-  {
-    key: "name",
-    header: "Name",
-    render: (agent) => (
-      <span className="font-medium text-foreground">{agent.name}</span>
-    ),
-  },
-  {
-    key: "model",
-    header: "Model",
-    render: (agent) => (
-      <span className="text-muted-foreground">{agent.model.id}</span>
-    ),
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (agent) => <StatusBadge status={getAgentStatus(agent)} />,
-  },
-  {
-    key: "created",
-    header: "Created",
-    render: (agent) => (
-      <span className="text-muted-foreground">{timeAgo(agent.created_at)}</span>
-    ),
-  },
-  {
-    key: "updated",
-    header: "Last updated",
-    render: (agent) => (
-      <span className="text-muted-foreground">{timeAgo(agent.updated_at)}</span>
-    ),
-  },
-];
 
 export default function AgentsPage() {
   const router = useRouter();
@@ -89,6 +45,79 @@ export default function AgentsPage() {
   useEffect(() => {
     fetchAgents();
   }, [fetchAgents]);
+
+  const handleArchive = async (agent: Agent) => {
+    try {
+      await archiveAgent(agent.id);
+      fetchAgents();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to archive agent"
+      );
+    }
+  };
+
+  const columns: readonly Column<Agent>[] = [
+    {
+      key: "id",
+      header: "ID",
+      render: (agent) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {truncateId(agent.id)}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      header: "Name",
+      render: (agent) => (
+        <span className="font-medium text-foreground">{agent.name}</span>
+      ),
+    },
+    {
+      key: "model",
+      header: "Model",
+      render: (agent) => (
+        <span className="text-muted-foreground">{agent.model.id}</span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (agent) => <StatusBadge status={getAgentStatus(agent)} />,
+    },
+    {
+      key: "created",
+      header: "Created",
+      render: (agent) => (
+        <span className="text-muted-foreground">
+          {timeAgo(agent.created_at)}
+        </span>
+      ),
+    },
+    {
+      key: "updated",
+      header: "Last updated",
+      render: (agent) => (
+        <span className="text-muted-foreground">
+          {timeAgo(agent.updated_at)}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "w-10",
+      render: (agent) =>
+        agent.archived_at ? null : (
+          <RowActionsMenu
+            actions={[
+              { label: "Archive", onClick: () => handleArchive(agent) },
+            ]}
+          />
+        ),
+    },
+  ];
 
   const handleNextPage = () => {
     if (nextPage) {
@@ -174,7 +203,7 @@ export default function AgentsPage() {
         <ErrorMessage message={error} onRetry={fetchAgents} />
       ) : (
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           data={filteredAgents}
           keyFn={(a) => a.id}
           onRowClick={(agent) => router.push(`/agents/${agent.id}`)}

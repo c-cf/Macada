@@ -2,13 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { listEnvironments } from "@/lib/api";
+import {
+  listEnvironments,
+  archiveEnvironment,
+  deleteEnvironment,
+} from "@/lib/api";
 import type { Environment } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { DataTable, Column } from "@/components/data-table";
 import { StatusBadge } from "@/components/status-badge";
 import { ErrorMessage } from "@/components/error-message";
 import { CreateEnvironmentDialog } from "@/components/create-environment-dialog";
+import { RowActionsMenu } from "@/components/row-actions-menu";
 import { timeAgo, truncateId } from "@/lib/utils";
 
 function getNetworkingType(env: Environment): string {
@@ -19,55 +24,6 @@ function getNetworkingType(env: Environment): string {
   }
   return "-";
 }
-
-const COLUMNS: readonly Column<Environment>[] = [
-  {
-    key: "id",
-    header: "ID",
-    render: (env) => (
-      <span className="font-mono text-xs text-muted-foreground">
-        {truncateId(env.id)}
-      </span>
-    ),
-  },
-  {
-    key: "name",
-    header: "Name",
-    render: (env) => (
-      <span className="font-medium text-foreground">{env.name || "-"}</span>
-    ),
-  },
-  {
-    key: "type",
-    header: "Type",
-    render: (env) => (
-      <span className="text-muted-foreground">{env.config?.type ?? "-"}</span>
-    ),
-  },
-  {
-    key: "networking",
-    header: "Networking",
-    render: (env) => (
-      <span className="text-muted-foreground capitalize">
-        {getNetworkingType(env)}
-      </span>
-    ),
-  },
-  {
-    key: "status",
-    header: "Status",
-    render: (env) => (
-      <StatusBadge status={env.archived_at ? "Archived" : "Active"} />
-    ),
-  },
-  {
-    key: "created",
-    header: "Created",
-    render: (env) => (
-      <span className="text-muted-foreground">{timeAgo(env.created_at)}</span>
-    ),
-  },
-];
 
 export default function EnvironmentsPage() {
   const router = useRouter();
@@ -118,6 +74,103 @@ export default function EnvironmentsPage() {
     }
   };
 
+  const handleArchive = async (env: Environment) => {
+    try {
+      await archiveEnvironment(env.id);
+      fetchEnvironments();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to archive environment"
+      );
+    }
+  };
+
+  const handleDelete = async (env: Environment) => {
+    try {
+      await deleteEnvironment(env.id);
+      fetchEnvironments();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to delete environment"
+      );
+    }
+  };
+
+  const columns: readonly Column<Environment>[] = [
+    {
+      key: "id",
+      header: "ID",
+      render: (env) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {truncateId(env.id)}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      header: "Name",
+      render: (env) => (
+        <span className="font-medium text-foreground">{env.name || "-"}</span>
+      ),
+    },
+    {
+      key: "type",
+      header: "Type",
+      render: (env) => (
+        <span className="text-muted-foreground">{env.config?.type ?? "-"}</span>
+      ),
+    },
+    {
+      key: "networking",
+      header: "Networking",
+      render: (env) => (
+        <span className="text-muted-foreground capitalize">
+          {getNetworkingType(env)}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (env) => (
+        <StatusBadge status={env.archived_at ? "Archived" : "Active"} />
+      ),
+    },
+    {
+      key: "created",
+      header: "Created",
+      render: (env) => (
+        <span className="text-muted-foreground">
+          {timeAgo(env.created_at)}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      className: "w-10",
+      render: (env) => (
+        <RowActionsMenu
+          actions={[
+            ...(env.archived_at
+              ? []
+              : [
+                  {
+                    label: "Archive",
+                    onClick: () => handleArchive(env),
+                  },
+                ]),
+            {
+              label: "Delete",
+              variant: "danger" as const,
+              onClick: () => handleDelete(env),
+            },
+          ]}
+        />
+      ),
+    },
+  ];
+
   return (
     <div>
       <PageHeader
@@ -150,7 +203,7 @@ export default function EnvironmentsPage() {
         <ErrorMessage message={error} onRetry={fetchEnvironments} />
       ) : (
         <DataTable
-          columns={COLUMNS}
+          columns={columns}
           data={environments}
           keyFn={(e) => e.id}
           onRowClick={(env) => router.push(`/environments/${env.id}`)}

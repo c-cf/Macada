@@ -69,6 +69,18 @@ async function postJSON<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+async function deleteJSON<T>(path: string): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
 // ── Auth (public — no token needed) ──────────────────────────────────────
 
 export function login(email: string, password: string): Promise<LoginResult> {
@@ -124,6 +136,10 @@ export function updateAgent(
   }
 ): Promise<Agent> {
   return postJSON(`/v1/agents/${id}`, body);
+}
+
+export function archiveAgent(id: string): Promise<Agent> {
+  return postJSON(`/v1/agents/${id}/archive`, {});
 }
 
 // ── Sessions ─────────────────────────────────────────────────────────────
@@ -227,6 +243,16 @@ export function updateEnvironment(
   }
 ): Promise<Environment> {
   return postJSON(`/v1/environments/${id}`, body);
+}
+
+export function archiveEnvironment(id: string): Promise<Environment> {
+  return postJSON(`/v1/environments/${id}/archive`, {});
+}
+
+export function deleteEnvironment(
+  id: string
+): Promise<{ id: string; type: string }> {
+  return deleteJSON(`/v1/environments/${id}`);
 }
 
 // ── Sessions (create / events) ──────────────────────────────────────────
