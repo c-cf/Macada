@@ -60,14 +60,15 @@ type SkillManifest struct {
 // --- Config file schemas (written to sandbox filesystem) ---
 
 // AgentConfigFile is written to /workspace/.claude/agent.json.
+// Note: API key is NOT included — LLM calls go through the control plane proxy.
 type AgentConfigFile struct {
 	ID               string `json:"id"`
 	Version          int    `json:"version"`
 	Name             string `json:"name"`
+	Type             string `json:"type,omitempty"`
 	SessionID        string `json:"session_id"`
 	ControlPlaneURL  string `json:"control_plane_url"`
 	ControlPlaneToken string `json:"control_plane_token"`
-	AnthropicAPIKey  string `json:"anthropic_api_key"`
 }
 
 // SettingsFile is written to /workspace/.claude/settings.json.

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/c-cf/macada/internal/runtime/toolset"
 )
 
 const (
@@ -16,13 +18,7 @@ const (
 	maxOutputBytes  = 100 * 1024 // 100 KB
 )
 
-// ToolResult is the output of a tool execution.
-type ToolResult struct {
-	Content string
-	IsError bool
-}
-
-// ToolExecutor runs tools inside the sandbox.
+// ToolExecutor runs tools inside the sandbox (legacy fallback).
 type ToolExecutor struct {
 	workDir string
 }
@@ -33,7 +29,7 @@ func NewToolExecutor(workDir string) *ToolExecutor {
 }
 
 // Execute runs the named tool with the given JSON input.
-func (e *ToolExecutor) Execute(ctx context.Context, name string, input json.RawMessage) ToolResult {
+func (e *ToolExecutor) Execute(ctx context.Context, name string, input json.RawMessage) toolset.ToolResult {
 	ctx, cancel := context.WithTimeout(ctx, toolTimeout)
 	defer cancel()
 
@@ -47,20 +43,20 @@ func (e *ToolExecutor) Execute(ctx context.Context, name string, input json.RawM
 	case "list_dir":
 		return e.executeListDir(input)
 	default:
-		return ToolResult{Content: fmt.Sprintf("unknown tool: %s", name), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("unknown tool: %s", name), IsError: true}
 	}
 }
 
-func (e *ToolExecutor) executeBash(ctx context.Context, input json.RawMessage) ToolResult {
+func (e *ToolExecutor) executeBash(ctx context.Context, input json.RawMessage) toolset.ToolResult {
 	var params struct {
 		Command string `json:"command"`
 		Timeout *int   `json:"timeout,omitempty"`
 	}
 	if err := json.Unmarshal(input, &params); err != nil {
-		return ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
 	}
 	if params.Command == "" {
-		return ToolResult{Content: "command is required", IsError: true}
+		return toolset.ToolResult{Content: "command is required", IsError: true}
 	}
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", params.Command)
@@ -71,31 +67,31 @@ func (e *ToolExecutor) executeBash(ctx context.Context, input json.RawMessage) T
 
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			return ToolResult{Content: result + "\n[command timed out]", IsError: true}
+			return toolset.ToolResult{Content: result + "\n[command timed out]", IsError: true}
 		}
-		return ToolResult{Content: result, IsError: true}
+		return toolset.ToolResult{Content: result, IsError: true}
 	}
 
-	return ToolResult{Content: result, IsError: false}
+	return toolset.ToolResult{Content: result, IsError: false}
 }
 
-func (e *ToolExecutor) executeReadFile(input json.RawMessage) ToolResult {
+func (e *ToolExecutor) executeReadFile(input json.RawMessage) toolset.ToolResult {
 	var params struct {
 		Path   string `json:"file_path"`
 		Offset *int   `json:"offset,omitempty"`
 		Limit  *int   `json:"limit,omitempty"`
 	}
 	if err := json.Unmarshal(input, &params); err != nil {
-		return ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
 	}
 	if params.Path == "" {
-		return ToolResult{Content: "file_path is required", IsError: true}
+		return toolset.ToolResult{Content: "file_path is required", IsError: true}
 	}
 
 	path := e.resolvePath(params.Path)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return ToolResult{Content: fmt.Sprintf("read error: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("read error: %v", err), IsError: true}
 	}
 
 	lines := strings.Split(string(data), "\n")
@@ -115,45 +111,44 @@ func (e *ToolExecutor) executeReadFile(input json.RawMessage) ToolResult {
 
 	selected := lines[offset : offset+limit]
 
-	// Add line numbers
 	var sb strings.Builder
 	for i, line := range selected {
 		fmt.Fprintf(&sb, "%d\t%s\n", offset+i+1, line)
 	}
 
-	return ToolResult{Content: truncateOutput(sb.String()), IsError: false}
+	return toolset.ToolResult{Content: truncateOutput(sb.String()), IsError: false}
 }
 
-func (e *ToolExecutor) executeWriteFile(input json.RawMessage) ToolResult {
+func (e *ToolExecutor) executeWriteFile(input json.RawMessage) toolset.ToolResult {
 	var params struct {
 		Path    string `json:"file_path"`
 		Content string `json:"content"`
 	}
 	if err := json.Unmarshal(input, &params); err != nil {
-		return ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
 	}
 	if params.Path == "" {
-		return ToolResult{Content: "file_path is required", IsError: true}
+		return toolset.ToolResult{Content: "file_path is required", IsError: true}
 	}
 
 	path := e.resolvePath(params.Path)
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return ToolResult{Content: fmt.Sprintf("mkdir error: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("mkdir error: %v", err), IsError: true}
 	}
 
 	if err := os.WriteFile(path, []byte(params.Content), 0o644); err != nil {
-		return ToolResult{Content: fmt.Sprintf("write error: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("write error: %v", err), IsError: true}
 	}
 
-	return ToolResult{Content: fmt.Sprintf("wrote %d bytes to %s", len(params.Content), params.Path), IsError: false}
+	return toolset.ToolResult{Content: fmt.Sprintf("wrote %d bytes to %s", len(params.Content), params.Path), IsError: false}
 }
 
-func (e *ToolExecutor) executeListDir(input json.RawMessage) ToolResult {
+func (e *ToolExecutor) executeListDir(input json.RawMessage) toolset.ToolResult {
 	var params struct {
 		Path string `json:"path"`
 	}
 	if err := json.Unmarshal(input, &params); err != nil {
-		return ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("invalid input: %v", err), IsError: true}
 	}
 
 	path := e.resolvePath(params.Path)
@@ -163,7 +158,7 @@ func (e *ToolExecutor) executeListDir(input json.RawMessage) ToolResult {
 
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return ToolResult{Content: fmt.Sprintf("readdir error: %v", err), IsError: true}
+		return toolset.ToolResult{Content: fmt.Sprintf("readdir error: %v", err), IsError: true}
 	}
 
 	var sb strings.Builder
@@ -175,7 +170,7 @@ func (e *ToolExecutor) executeListDir(input json.RawMessage) ToolResult {
 		sb.WriteString(entry.Name() + suffix + "\n")
 	}
 
-	return ToolResult{Content: sb.String(), IsError: false}
+	return toolset.ToolResult{Content: sb.String(), IsError: false}
 }
 
 func (e *ToolExecutor) resolvePath(p string) string {

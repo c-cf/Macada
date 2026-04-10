@@ -18,6 +18,7 @@ type Deps struct {
 	AnalyticsHandler   *handler.AnalyticsHandler
 	SkillHandler       *handler.SkillHandler
 	InternalHandler    *handler.InternalHandler
+	LLMProxyHandler    *handler.LLMProxyHandler
 	WorkspaceHandler   *handler.WorkspaceHandler
 	APIKeyHandler      *handler.APIKeyHandler
 	BootstrapHandler   *handler.BootstrapHandler
@@ -155,9 +156,12 @@ func NewRouter(deps Deps) http.Handler {
 	})
 
 	// Internal routes (sandbox runtime → control plane)
+	// InternalOnly: reject requests from non-private IPs (only Docker network / localhost allowed)
 	r.Route("/internal/v1/sandbox/{session_id}", func(r chi.Router) {
+		r.Use(authmw.InternalOnly)
 		r.Post("/events", deps.InternalHandler.IngestEvents)
 		r.Post("/files", deps.InternalHandler.UploadFile)
+		r.Post("/llm", deps.LLMProxyHandler.ProxyLLM)
 	})
 
 	return r

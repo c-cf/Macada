@@ -27,7 +27,6 @@ const (
 type OrchestratorConfig struct {
 	RuntimeImage    string // Docker image for the agent runtime
 	ControlPlaneURL string // URL the runtime uses to call back
-	AnthropicAPIKey string // API key passed to the runtime
 	DockerHost      string // Docker daemon URL
 	NetworkName     string // Docker network for sandbox containers
 }
@@ -250,6 +249,7 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		ID         string            `json:"id"`
 		Version    int               `json:"version"`
 		Name       string            `json:"name"`
+		Type       string            `json:"type"`
 		System     string            `json:"system"`
 		Model      domain.ModelConfig `json:"model"`
 		Tools      json.RawMessage   `json:"tools"`
@@ -318,16 +318,16 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		}
 	}
 
-	// Build deploy manifest
+	// Build deploy manifest (API key NOT included — runtime uses LLM proxy)
 	manifest := DeployManifest{
 		Agent: AgentConfigFile{
 			ID:                agentSnap.ID,
 			Version:           agentSnap.Version,
 			Name:              agentSnap.Name,
+			Type:              agentSnap.Type,
 			SessionID:         sessionID,
 			ControlPlaneURL:   o.config.ControlPlaneURL,
 			ControlPlaneToken: token,
-			AnthropicAPIKey:   o.config.AnthropicAPIKey,
 		},
 		SystemPrompt: agentSnap.System,
 		Model:        agentSnap.Model,

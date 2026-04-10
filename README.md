@@ -74,28 +74,9 @@ The backend runs database migrations automatically on startup. The first time yo
 
 ## Architecture
 
-```
-                  Browser
-                    │
-                    ▼
-              ┌───────────┐
-              │  Frontend  │  Next.js 15 / React 19
-              └─────┬─────┘
-                    │ REST / SSE
-                    ▼
-              ┌───────────┐     ┌───────────────────────┐
-              │  Backend   │────▶│  Runtime (per-session) │
-              │ Control    │◀────│  Sandbox container     │
-              │  Plane     │     └───────────────────────┘
-              └──┬────┬────┘
-                 │    │
-          ┌──────┘    └──────┐
-          ▼                  ▼
-    ┌──────────┐       ┌──────────┐
-    │PostgreSQL│       │  Redis   │
-    │    16    │       │    7     │
-    └──────────┘       └──────────┘
-```
+<p align="center">
+  <img src=".github/architecture.png" alt="Macada Architecture" width="680" />
+</p>
 
 | Layer        | Stack                                       |
 |--------------|---------------------------------------------|

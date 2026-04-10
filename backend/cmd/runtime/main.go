@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	osexec "os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -14,6 +14,7 @@ import (
 	rtctx "github.com/c-cf/macada/internal/runtime/context"
 	"github.com/c-cf/macada/internal/runtime/loop"
 	"github.com/c-cf/macada/internal/runtime/reporter"
+	"github.com/c-cf/macada/internal/runtime/toolset"
 	rt "github.com/c-cf/macada/internal/runtime"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -58,11 +59,20 @@ func main() {
 	})
 
 	// 3. Create components
-	apiClient := loop.NewAnthropicClient(cfg.Agent.AnthropicAPIKey)
+	// LLM calls go through the control plane proxy — API key never enters the container
+	llmProxyURL := fmt.Sprintf("%s/internal/v1/sandbox/%s/llm",
+		cfg.Agent.ControlPlaneURL, cfg.Agent.SessionID)
+	apiClient := loop.NewAnthropicClient(llmProxyURL, cfg.Agent.ControlPlaneToken)
 	toolExec := loop.NewToolExecutor(basePath)
 	compressor := rtctx.NewCompressor(rtctx.DefaultCompressionConfig())
 
-	agentLoop := loop.NewLoop(*cfg, apiClient, toolExec, rep, compressor)
+	// Resolve toolset from agent type (nil if no toolset specified)
+	ts := toolset.Resolve(cfg.Agent.Type, basePath)
+	if ts != nil {
+		log.Info().Str("agent_type", cfg.Agent.Type).Msg("toolset activated")
+	}
+
+	agentLoop := loop.NewLoop(*cfg, apiClient, toolExec, ts, rep, compressor)
 
 	// 4. Start HTTP server
 	server := rt.NewServer(agentLoop)
@@ -112,44 +122,33 @@ func hasPackages(p rtcfg.PackagesConfig) bool {
 }
 
 func installPackages(p rtcfg.PackagesConfig) {
-	exec := loop.NewToolExecutor("/workspace")
 	ctx := context.Background()
 
 	if len(p.Apt) > 0 {
-		cmd := fmt.Sprintf("apt-get update -qq && apt-get install -y -qq %s", joinArgs(p.Apt))
-		result := exec.Execute(ctx, "bash", toJSON(map[string]string{"command": cmd}))
-		if result.IsError {
-			log.Warn().Str("output", result.Content).Msg("apt install failed")
+		// Run apt-get update first
+		runCmd(ctx, "apt-get", "update", "-qq")
+		// Use exec.Command directly to avoid shell injection
+		args := append([]string{"install", "-y", "-qq", "--"}, p.Apt...)
+		if output, err := osexec.CommandContext(ctx, "apt-get", args...).CombinedOutput(); err != nil {
+			log.Warn().Str("output", string(output)).Msg("apt install failed")
 		}
 	}
 	if len(p.Pip) > 0 {
-		cmd := fmt.Sprintf("pip install -q %s", joinArgs(p.Pip))
-		result := exec.Execute(ctx, "bash", toJSON(map[string]string{"command": cmd}))
-		if result.IsError {
-			log.Warn().Str("output", result.Content).Msg("pip install failed")
+		args := append([]string{"install", "-q", "--"}, p.Pip...)
+		if output, err := osexec.CommandContext(ctx, "pip", args...).CombinedOutput(); err != nil {
+			log.Warn().Str("output", string(output)).Msg("pip install failed")
 		}
 	}
 	if len(p.Npm) > 0 {
-		cmd := fmt.Sprintf("npm install -g %s", joinArgs(p.Npm))
-		result := exec.Execute(ctx, "bash", toJSON(map[string]string{"command": cmd}))
-		if result.IsError {
-			log.Warn().Str("output", result.Content).Msg("npm install failed")
+		args := append([]string{"install", "-g", "--"}, p.Npm...)
+		if output, err := osexec.CommandContext(ctx, "npm", args...).CombinedOutput(); err != nil {
+			log.Warn().Str("output", string(output)).Msg("npm install failed")
 		}
 	}
 }
 
-func joinArgs(args []string) string {
-	result := ""
-	for i, a := range args {
-		if i > 0 {
-			result += " "
-		}
-		result += a
+func runCmd(ctx context.Context, name string, args ...string) {
+	if output, err := osexec.CommandContext(ctx, name, args...).CombinedOutput(); err != nil {
+		log.Warn().Str("output", string(output)).Str("cmd", name).Msg("command failed")
 	}
-	return result
-}
-
-func toJSON(v interface{}) []byte {
-	data, _ := json.Marshal(v)
-	return data
 }

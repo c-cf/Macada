@@ -23,7 +23,6 @@ func TestDeploy_BasicAgent(t *testing.T) {
 			SessionID:        "sesn_01XYZ",
 			ControlPlaneURL:  "http://backend:8080",
 			ControlPlaneToken: "tok_secret",
-			AnthropicAPIKey:  "sk-ant-test",
 		},
 		SystemPrompt: "You are a helpful assistant.",
 		Model:        domain.ModelConfig{ID: "claude-sonnet-4-6"},
@@ -48,8 +47,8 @@ func TestDeploy_BasicAgent(t *testing.T) {
 	if agent.ID != "agent_01ABC" {
 		t.Errorf("agent.id = %q", agent.ID)
 	}
-	if agent.AnthropicAPIKey != "sk-ant-test" {
-		t.Errorf("agent.anthropic_api_key = %q", agent.AnthropicAPIKey)
+	if agent.ControlPlaneToken != "tok_secret" {
+		t.Errorf("agent.control_plane_token = %q", agent.ControlPlaneToken)
 	}
 
 	// Verify settings.json
@@ -82,7 +81,7 @@ func TestDeploy_WithSkills(t *testing.T) {
 			ID:               "agent_01ABC",
 			SessionID:        "sesn_01XYZ",
 			ControlPlaneURL:  "http://backend:8080",
-			AnthropicAPIKey:  "sk-ant-test",
+			ControlPlaneToken: "tok_secret",
 		},
 		Model: domain.ModelConfig{ID: "claude-sonnet-4-6"},
 		Skills: []SkillManifest{
@@ -144,7 +143,7 @@ func TestDeploy_WithSessionMemory(t *testing.T) {
 			ID:              "agent_01",
 			SessionID:       "sesn_01",
 			ControlPlaneURL: "http://backend:8080",
-			AnthropicAPIKey: "sk-ant-test",
+			ControlPlaneToken: "tok_secret",
 		},
 		Model: domain.ModelConfig{ID: "claude-sonnet-4-6"},
 		SessionMemory: &svcctx.SessionMemory{
@@ -176,7 +175,7 @@ func TestDeploy_EmptySkillsAndTools(t *testing.T) {
 			ID:              "agent_01",
 			SessionID:       "sesn_01",
 			ControlPlaneURL: "http://backend:8080",
-			AnthropicAPIKey: "sk-ant-test",
+			ControlPlaneToken: "tok_secret",
 		},
 		Model: domain.ModelConfig{ID: "claude-sonnet-4-6"},
 	}

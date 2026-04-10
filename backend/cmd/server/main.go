@@ -105,7 +105,6 @@ func main() {
 		sandbox.OrchestratorConfig{
 			RuntimeImage:    cfg.RuntimeImage,
 			ControlPlaneURL: cfg.ControlPlaneURL,
-			AnthropicAPIKey: cfg.AnthropicKey,
 			DockerHost:      cfg.DockerHost,
 			NetworkName:     cfg.NetworkName,
 		},
@@ -129,6 +128,7 @@ func main() {
 	fileHandler := handler.NewFileHandler(fileRepo, fileStorage)
 	resourceHandler := handler.NewResourceHandler(resourceRepo, sessionRepo, fileRepo)
 	internalHandler := handler.NewInternalHandler(eventRepo, sessionRepo, eventBus, analyticsRepo, tokenGen, fileHandler)
+	llmProxyHandler := handler.NewLLMProxyHandler(cfg.AnthropicKey, tokenGen)
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo, workspaceRepo)
 	bootstrapHandler := handler.NewBootstrapHandler(cfg.AdminSecret, workspaceRepo, apiKeyRepo)
@@ -143,6 +143,7 @@ func main() {
 		AnalyticsHandler:   analyticsHandler,
 		SkillHandler:       skillHandler,
 		InternalHandler:    internalHandler,
+		LLMProxyHandler:    llmProxyHandler,
 		WorkspaceHandler:   workspaceHandler,
 		APIKeyHandler:      apiKeyHandler,
 		BootstrapHandler:   bootstrapHandler,

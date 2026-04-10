@@ -11,6 +11,7 @@ import (
 	rtctx "github.com/c-cf/macada/internal/runtime/context"
 	"github.com/c-cf/macada/internal/runtime/prompt"
 	"github.com/c-cf/macada/internal/runtime/reporter"
+	"github.com/c-cf/macada/internal/runtime/toolset"
 	"github.com/rs/zerolog/log"
 )
 
@@ -38,6 +39,7 @@ type Loop struct {
 	config     rtcfg.RuntimeConfig
 	api        *AnthropicClient
 	tools      *ToolExecutor
+	toolset    *toolset.Toolset // nil if agent type doesn't specify a toolset
 	reporter   *reporter.Reporter
 	compressor *rtctx.Compressor
 }
@@ -47,6 +49,7 @@ func NewLoop(
 	config rtcfg.RuntimeConfig,
 	api *AnthropicClient,
 	tools *ToolExecutor,
+	ts *toolset.Toolset,
 	reporter *reporter.Reporter,
 	compressor *rtctx.Compressor,
 ) *Loop {
@@ -54,6 +57,7 @@ func NewLoop(
 		config:     config,
 		api:        api,
 		tools:      tools,
+		toolset:    ts,
 		reporter:   reporter,
 		compressor: compressor,
 	}
@@ -94,6 +98,12 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 
 	_ = l.reporter.Report(ctx, "session.status_running", nil)
 
+	// Merge toolset definitions with user-provided tools
+	apiTools := l.config.Tools
+	if l.toolset != nil {
+		apiTools = l.toolset.MergeDefinitions(l.config.Tools)
+	}
+
 	for round := 0; round < maxToolRounds; round++ {
 		// Mid-turn compression: if messages are getting too large, thin old tool results
 		messages = l.midTurnCompress(messages, midTurnThreshold)
@@ -105,7 +115,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 			Model:     l.config.Settings.Model.ID,
 			System:    apiSystem,
 			Messages:  messages,
-			Tools:     l.config.Tools,
+			Tools:     apiTools,
 			MaxTokens: defaultMaxToks,
 		})
 		if err != nil {
@@ -152,10 +162,10 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 			return nil
 		}
 
-		// Execute tools
+		// Execute tools (toolset first, then legacy executor)
 		var toolResults []map[string]interface{}
 		for _, tu := range toolUses {
-			result := l.tools.Execute(ctx, tu.Name, tu.Input)
+			result := l.executeTool(ctx, tu.Name, tu.Input)
 			_ = l.reporter.Report(ctx, "agent.tool_result", map[string]interface{}{
 				"tool_use_id": tu.ID,
 				"content":     result.Content,
@@ -247,6 +257,14 @@ func thinToolResultMessage(msg Message) Message {
 
 	content, _ := json.Marshal(blocks)
 	return Message{Role: msg.Role, Content: content}
+}
+
+// executeTool routes to the toolset if available, otherwise falls back to the legacy executor.
+func (l *Loop) executeTool(ctx context.Context, name string, input json.RawMessage) toolset.ToolResult {
+	if l.toolset != nil && l.toolset.CanExecute(name) {
+		return l.toolset.Execute(ctx, name, input)
+	}
+	return l.tools.Execute(ctx, name, input)
 }
 
 func (l *Loop) buildSystemPromptWithMemory(ctx context.Context, memory *rtctx.SessionMemory) ([]prompt.SystemBlock, error) {

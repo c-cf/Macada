@@ -19,14 +19,15 @@ type RuntimeConfig struct {
 }
 
 // AgentConfig corresponds to /workspace/.claude/agent.json.
+// Note: no API key — LLM calls go through the control plane proxy.
 type AgentConfig struct {
 	ID                string `json:"id"`
 	Version           int    `json:"version"`
 	Name              string `json:"name"`
+	Type              string `json:"type,omitempty"`
 	SessionID         string `json:"session_id"`
 	ControlPlaneURL   string `json:"control_plane_url"`
 	ControlPlaneToken string `json:"control_plane_token"`
-	AnthropicAPIKey   string `json:"anthropic_api_key"`
 }
 
 // SettingsConfig corresponds to /workspace/.claude/settings.json.

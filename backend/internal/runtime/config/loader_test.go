@@ -32,7 +32,7 @@ func TestLoad_FullConfig(t *testing.T) {
 			"session_id": "sesn_01XYZ",
 			"control_plane_url": "http://backend:8080",
 			"control_plane_token": "tok_123",
-			"anthropic_api_key": "sk-ant-test"
+			"control_plane_token": "tok_secret"
 		}`,
 		".claude/settings.json": `{"model":{"id":"claude-sonnet-4-6"}}`,
 		".claude/tools.json":    `[{"name":"bash","description":"Run commands"}]`,
@@ -122,7 +122,7 @@ func TestLoad_MinimalConfig(t *testing.T) {
 			"id": "agent_01",
 			"session_id": "sesn_01",
 			"control_plane_url": "http://backend:8080",
-			"anthropic_api_key": "sk-ant-test"
+			"control_plane_token": "tok_secret"
 		}`,
 	})
 
@@ -149,7 +149,7 @@ func TestLoad_SkillDiscovery(t *testing.T) {
 			"id": "agent_01",
 			"session_id": "sesn_01",
 			"control_plane_url": "http://backend:8080",
-			"anthropic_api_key": "sk-ant-test"
+			"control_plane_token": "tok_secret"
 		}`,
 		".claude/skills/skill-a/SKILL.md": "---\nname: skill-a\ndescription: First skill.\n---\n\nDo A.",
 		".claude/skills/skill-b/SKILL.md": "---\nname: skill-b\ndescription: Second skill.\n---\n\nDo B.",

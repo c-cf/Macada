@@ -13,24 +13,26 @@ import (
 )
 
 const (
-	apiURL         = "https://api.anthropic.com/v1/messages"
 	apiVersion     = "2023-06-01"
 	clientTimeout  = 5 * time.Minute
 	maxRetries     = 2
 	retryBaseDelay = 1 * time.Second
 )
 
-// AnthropicClient calls the Anthropic Messages API.
+// AnthropicClient calls the Anthropic Messages API through the control plane LLM proxy.
+// The API key is never stored in the container — the proxy injects it.
 type AnthropicClient struct {
-	apiKey string
-	client *http.Client
+	proxyURL string // e.g. "http://backend:8080/internal/v1/sandbox/{sessionID}/llm"
+	token    string // sandbox session token for auth
+	client   *http.Client
 }
 
-// NewAnthropicClient creates a new client.
-func NewAnthropicClient(apiKey string) *AnthropicClient {
+// NewAnthropicClient creates a client that calls the control plane LLM proxy.
+func NewAnthropicClient(proxyURL, token string) *AnthropicClient {
 	return &AnthropicClient{
-		apiKey: apiKey,
-		client: &http.Client{Timeout: clientTimeout},
+		proxyURL: proxyURL,
+		token:    token,
+		client:   &http.Client{Timeout: clientTimeout},
 	}
 }
 
@@ -97,7 +99,7 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("anthropic api %d: %s — %s", e.StatusCode, e.Type, e.Message)
 }
 
-// CreateMessage sends a non-streaming request to the Messages API.
+// CreateMessage sends a non-streaming request through the LLM proxy.
 func (c *AnthropicClient) CreateMessage(ctx context.Context, req MessageRequest) (*MessageResponse, error) {
 	if req.MaxTokens == 0 {
 		req.MaxTokens = 8192
@@ -131,7 +133,7 @@ func (c *AnthropicClient) CreateMessage(ctx context.Context, req MessageRequest)
 	return nil, fmt.Errorf("after %d retries: %w", maxRetries, lastErr)
 }
 
-// CreateMessageStream sends a streaming request and calls onEvent for each SSE event.
+// CreateMessageStream sends a streaming request through the LLM proxy.
 func (c *AnthropicClient) CreateMessageStream(ctx context.Context, req MessageRequest, onEvent func(eventType string, data json.RawMessage)) (*MessageResponse, error) {
 	if req.MaxTokens == 0 {
 		req.MaxTokens = 8192
@@ -150,7 +152,7 @@ func (c *AnthropicClient) CreateMessageStream(ctx context.Context, req MessageRe
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.proxyURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -170,7 +172,7 @@ func (c *AnthropicClient) CreateMessageStream(ctx context.Context, req MessageRe
 }
 
 func (c *AnthropicClient) doRequest(ctx context.Context, body []byte) (*MessageResponse, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.proxyURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -200,7 +202,7 @@ func (c *AnthropicClient) doRequest(ctx context.Context, body []byte) (*MessageR
 
 func (c *AnthropicClient) setHeaders(req *http.Request) {
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("anthropic-version", apiVersion)
 }
 
@@ -225,7 +227,6 @@ func (c *AnthropicClient) parseSSEStream(body io.Reader, onEvent func(string, js
 			}
 
 			if currentEvent == "message_stop" {
-				// Try to extract final message from accumulated data
 				break
 			}
 

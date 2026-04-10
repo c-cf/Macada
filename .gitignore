@@ -17,6 +17,8 @@ Thumbs.db
 # Go
 backend/bin/
 backend/tmp/
+*.exe
+backend/coverage.out
 
 # Node
 frontend/node_modules/

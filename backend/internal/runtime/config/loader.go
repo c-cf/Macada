@@ -33,8 +33,8 @@ func Load(basePath string) (*RuntimeConfig, error) {
 	if cfg.Agent.ControlPlaneURL == "" {
 		return nil, fmt.Errorf("agent.json must contain control_plane_url")
 	}
-	if cfg.Agent.AnthropicAPIKey == "" {
-		return nil, fmt.Errorf("agent.json must contain anthropic_api_key")
+	if cfg.Agent.ControlPlaneToken == "" {
+		return nil, fmt.Errorf("agent.json must contain control_plane_token")
 	}
 
 	// 2. CLAUDE.md (optional)
