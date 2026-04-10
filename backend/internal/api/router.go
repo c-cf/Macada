@@ -22,6 +22,8 @@ type Deps struct {
 	APIKeyHandler      *handler.APIKeyHandler
 	BootstrapHandler   *handler.BootstrapHandler
 	AuthHandler        *handler.AuthHandler
+	FileHandler        *handler.FileHandler
+	ResourceHandler    *handler.ResourceHandler
 	APIKeyRepo         domain.APIKeyRepository
 	JWTValidator       authmw.TokenValidator
 	MemberRepo         authmw.MembershipChecker
@@ -95,6 +97,17 @@ func NewRouter(deps Deps) http.Handler {
 			})
 		})
 
+		// Files
+		r.Route("/files", func(r chi.Router) {
+			r.Post("/", deps.FileHandler.Upload)
+			r.Get("/", deps.FileHandler.List)
+			r.Route("/{file_id}", func(r chi.Router) {
+				r.Get("/", deps.FileHandler.GetMetadata)
+				r.Get("/content", deps.FileHandler.Download)
+				r.Delete("/", deps.FileHandler.Delete)
+			})
+		})
+
 		// Agents
 		r.Route("/agents", func(r chi.Router) {
 			r.Post("/", deps.AgentHandler.Create)
@@ -120,6 +133,17 @@ func NewRouter(deps Deps) http.Handler {
 				r.Get("/", deps.SessionHandler.Retrieve)
 				r.Post("/archive", deps.SessionHandler.Archive)
 
+				// Resources
+				r.Route("/resources", func(r chi.Router) {
+					r.Post("/", deps.ResourceHandler.Add)
+					r.Get("/", deps.ResourceHandler.List)
+					r.Route("/{resource_id}", func(r chi.Router) {
+						r.Get("/", deps.ResourceHandler.Retrieve)
+						r.Post("/", deps.ResourceHandler.Update)
+						r.Delete("/", deps.ResourceHandler.Delete)
+					})
+				})
+
 				// Events
 				r.Route("/events", func(r chi.Router) {
 					r.Post("/", deps.EventHandler.Send)
@@ -131,8 +155,9 @@ func NewRouter(deps Deps) http.Handler {
 	})
 
 	// Internal routes (sandbox runtime → control plane)
-	r.Route("/internal/v1/sandbox/{session_id}/events", func(r chi.Router) {
-		r.Post("/", deps.InternalHandler.IngestEvents)
+	r.Route("/internal/v1/sandbox/{session_id}", func(r chi.Router) {
+		r.Post("/events", deps.InternalHandler.IngestEvents)
+		r.Post("/files", deps.InternalHandler.UploadFile)
 	})
 
 	return r

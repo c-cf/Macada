@@ -2,24 +2,36 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/c-cf/macada/internal/domain"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 )
 
 type SessionHandler struct {
-	sessionRepo domain.SessionRepository
-	agentRepo   domain.AgentRepository
-	envRepo     domain.EnvironmentRepository
+	sessionRepo  domain.SessionRepository
+	agentRepo    domain.AgentRepository
+	envRepo      domain.EnvironmentRepository
+	resourceRepo domain.ResourceRepository
+	fileRepo     domain.FileRepository
 }
 
-func NewSessionHandler(sessionRepo domain.SessionRepository, agentRepo domain.AgentRepository, envRepo domain.EnvironmentRepository) *SessionHandler {
+func NewSessionHandler(
+	sessionRepo domain.SessionRepository,
+	agentRepo domain.AgentRepository,
+	envRepo domain.EnvironmentRepository,
+	resourceRepo domain.ResourceRepository,
+	fileRepo domain.FileRepository,
+) *SessionHandler {
 	return &SessionHandler{
-		sessionRepo: sessionRepo,
-		agentRepo:   agentRepo,
-		envRepo:     envRepo,
+		sessionRepo:  sessionRepo,
+		agentRepo:    agentRepo,
+		envRepo:      envRepo,
+		resourceRepo: resourceRepo,
+		fileRepo:     fileRepo,
 	}
 }
 
@@ -115,6 +127,10 @@ func (h *SessionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Process resource params and create session_resources records
+	resources := h.processResourceParams(r, session.ID, wsID, req.Resources)
+	session.Resources = marshalResources(resources)
+
 	writeJSON(w, http.StatusOK, session)
 }
 
@@ -177,6 +193,7 @@ func (h *SessionHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "session not found")
 		return
 	}
+	session.Resources = h.loadSessionResources(r, session.ID)
 	writeJSON(w, http.StatusOK, session)
 }
 
@@ -193,6 +210,94 @@ func (h *SessionHandler) Archive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, session)
+}
+
+// resourceParam is a single resource entry from the session creation request.
+type resourceParam struct {
+	Type      string  `json:"type"`
+	FileID    string  `json:"file_id,omitempty"`
+	MountPath *string `json:"mount_path,omitempty"`
+}
+
+// processResourceParams parses the resources array from session creation
+// and creates SessionResource records in the DB.
+func (h *SessionHandler) processResourceParams(r *http.Request, sessionID, wsID string, raw json.RawMessage) []*domain.SessionResource {
+	if len(raw) == 0 || string(raw) == "[]" || string(raw) == "null" {
+		return nil
+	}
+
+	var params []resourceParam
+	if err := json.Unmarshal(raw, &params); err != nil {
+		log.Warn().Err(err).Msg("failed to parse resources params")
+		return nil
+	}
+
+	var created []*domain.SessionResource
+	now := time.Now().UTC()
+
+	for _, p := range params {
+		if p.Type != "file" {
+			continue // only file resources supported for now
+		}
+		if p.FileID == "" {
+			continue
+		}
+
+		// Validate file exists in same workspace
+		file, err := h.fileRepo.GetByID(r.Context(), p.FileID)
+		if err != nil || file.WorkspaceID != wsID {
+			log.Warn().Str("file_id", p.FileID).Msg("file not found or wrong workspace, skipping resource")
+			continue
+		}
+
+		mountPath := fmt.Sprintf("/mnt/session/uploads/%s", p.FileID)
+		if p.MountPath != nil && *p.MountPath != "" {
+			mountPath = *p.MountPath
+		}
+
+		res := &domain.SessionResource{
+			ID:        domain.NewResourceID(),
+			SessionID: sessionID,
+			Type:      "file",
+			FileID:    &p.FileID,
+			MountPath: mountPath,
+			Config:    json.RawMessage("{}"),
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+
+		if err := h.resourceRepo.Create(r.Context(), res); err != nil {
+			log.Error().Err(err).Str("file_id", p.FileID).Msg("failed to create resource")
+			continue
+		}
+		created = append(created, res)
+	}
+
+	return created
+}
+
+// loadSessionResources fetches structured resources from the DB for a session response.
+func (h *SessionHandler) loadSessionResources(r *http.Request, sessionID string) json.RawMessage {
+	resources, _, err := h.resourceRepo.ListBySession(r.Context(), sessionID, domain.ListParams{})
+	if err != nil || len(resources) == 0 {
+		return json.RawMessage("[]")
+	}
+	data, err := json.Marshal(resources)
+	if err != nil {
+		return json.RawMessage("[]")
+	}
+	return data
+}
+
+func marshalResources(resources []*domain.SessionResource) json.RawMessage {
+	if len(resources) == 0 {
+		return json.RawMessage("[]")
+	}
+	data, err := json.Marshal(resources)
+	if err != nil {
+		return json.RawMessage("[]")
+	}
+	return data
 }
 
 func resolveAgentID(raw json.RawMessage) (string, error) {

@@ -100,6 +100,42 @@ export interface Environment {
   readonly type: string;
 }
 
+// Files API types
+
+export interface FileMetadata {
+  readonly id: string;
+  readonly filename: string;
+  readonly mime_type: string;
+  readonly size_bytes: number;
+  readonly downloadable: boolean;
+  readonly created_at: string;
+  readonly type: "file";
+}
+
+export interface FileResource {
+  readonly id: string;
+  readonly session_id?: string;
+  readonly file_id: string;
+  readonly mount_path: string;
+  readonly type: "file";
+  readonly config?: unknown;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface GitHubRepositoryResource {
+  readonly id: string;
+  readonly session_id?: string;
+  readonly url: string;
+  readonly mount_path: string;
+  readonly type: "github_repository";
+  readonly config?: unknown;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export type SessionResource = FileResource | GitHubRepositoryResource;
+
 export interface SessionEvent {
   readonly id: string;
   readonly type: string;

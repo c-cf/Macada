@@ -578,7 +578,7 @@ export default function SessionDetailPage() {
   const [events, setEvents] = useState<readonly SessionEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"transcript" | "debug">(
+  const [activeTab, setActiveTab] = useState<"transcript" | "debug" | "usage">(
     "transcript"
   );
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
@@ -670,28 +670,6 @@ export default function SessionDetailPage() {
         </span>
       </div>
 
-      {/* Token usage */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Input tokens</p>
-          <p className="text-lg font-semibold text-foreground">
-            {formatTokens(session.usage.input_tokens)}
-          </p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Output tokens</p>
-          <p className="text-lg font-semibold text-foreground">
-            {formatTokens(session.usage.output_tokens)}
-          </p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-4">
-          <p className="text-xs text-muted-foreground mb-1">Cache read tokens</p>
-          <p className="text-lg font-semibold text-foreground">
-            {formatTokens(session.usage.cache_read_input_tokens)}
-          </p>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="border-b border-border">
         <div className="flex gap-0">
@@ -715,58 +693,111 @@ export default function SessionDetailPage() {
           >
             Debug
           </button>
+          <button
+            onClick={() => setActiveTab("usage")}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "usage"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Usage
+          </button>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <SessionToolbar
-        isDebug={activeTab === "debug"}
-        debugFilter={debugFilter}
-        onDebugFilterChange={setDebugFilter}
-        events={displayEvents}
-      />
-
-      {/* Timeline Bar */}
-      <TimelineBar
-        events={displayEvents}
-        timings={timings}
-        sessionStartIso={session.created_at}
-        isTranscript={activeTab === "transcript"}
-        selectedId={selectedEventId}
-        onSelect={setSelectedEventId}
-      />
-
-      {/* Split view */}
-      <div className="grid grid-cols-5 gap-4 mt-2">
-        {/* Left panel: event timeline */}
-        <div className="col-span-2 bg-card rounded-xl border border-border overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {activeTab === "transcript" ? "Events" : "Raw Events"}
-            </h3>
+      {activeTab === "usage" ? (
+        <div className="mt-4">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-card rounded-xl border border-border p-5">
+              <p className="text-xs text-muted-foreground mb-1">Input tokens</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {formatTokens(session.usage.input_tokens)}
+              </p>
+            </div>
+            <div className="bg-card rounded-xl border border-border p-5">
+              <p className="text-xs text-muted-foreground mb-1">Output tokens</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {formatTokens(session.usage.output_tokens)}
+              </p>
+            </div>
+            <div className="bg-card rounded-xl border border-border p-5">
+              <p className="text-xs text-muted-foreground mb-1">Cache read tokens</p>
+              <p className="text-2xl font-semibold text-foreground">
+                {formatTokens(session.usage.cache_read_input_tokens)}
+              </p>
+            </div>
           </div>
-          <EventTimeline
+          {session.usage.cache_creation && (
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="bg-card rounded-xl border border-border p-5">
+                <p className="text-xs text-muted-foreground mb-1">Cache creation (5m ephemeral)</p>
+                <p className="text-2xl font-semibold text-foreground">
+                  {formatTokens(session.usage.cache_creation.ephemeral_5m_input_tokens)}
+                </p>
+              </div>
+              <div className="bg-card rounded-xl border border-border p-5">
+                <p className="text-xs text-muted-foreground mb-1">Cache creation (1h ephemeral)</p>
+                <p className="text-2xl font-semibold text-foreground">
+                  {formatTokens(session.usage.cache_creation.ephemeral_1h_input_tokens)}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Toolbar */}
+          <SessionToolbar
+            isDebug={activeTab === "debug"}
+            debugFilter={debugFilter}
+            onDebugFilterChange={setDebugFilter}
             events={displayEvents}
+          />
+
+          {/* Timeline Bar */}
+          <TimelineBar
+            events={displayEvents}
+            timings={timings}
+            sessionStartIso={session.created_at}
+            isTranscript={activeTab === "transcript"}
             selectedId={selectedEventId}
             onSelect={setSelectedEventId}
-            filterTranscript={activeTab === "transcript"}
-            timings={timings}
           />
-        </div>
 
-        {/* Right panel: event detail */}
-        <div className="col-span-3 bg-card rounded-xl border border-border overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {activeTab === "transcript" ? "Content" : "Raw JSON"}
-            </h3>
+          {/* Split view */}
+          <div className="grid grid-cols-5 gap-4 mt-2">
+            {/* Left panel: event timeline */}
+            <div className="col-span-2 bg-card rounded-xl border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {activeTab === "transcript" ? "Events" : "Raw Events"}
+                </h3>
+              </div>
+              <EventTimeline
+                events={displayEvents}
+                selectedId={selectedEventId}
+                onSelect={setSelectedEventId}
+                filterTranscript={activeTab === "transcript"}
+                timings={timings}
+              />
+            </div>
+
+            {/* Right panel: event detail */}
+            <div className="col-span-3 bg-card rounded-xl border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {activeTab === "transcript" ? "Content" : "Raw JSON"}
+                </h3>
+              </div>
+              <EventDetail
+                event={selectedEvent}
+                isDebug={activeTab === "debug"}
+              />
+            </div>
           </div>
-          <EventDetail
-            event={selectedEvent}
-            isDebug={activeTab === "debug"}
-          />
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

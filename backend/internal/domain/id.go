@@ -17,6 +17,8 @@ const (
 	PrefixWorkspace   = "ws_"
 	PrefixAPIKey      = "key_"
 	PrefixUser        = "usr_"
+	PrefixFile        = "file_"
+	PrefixResource    = "res_"
 )
 
 func NewID(prefix string) string {
@@ -32,3 +34,5 @@ func NewSkillID() string       { return NewID(PrefixSkill) }
 func NewWorkspaceID() string   { return NewID(PrefixWorkspace) }
 func NewAPIKeyID() string      { return NewID(PrefixAPIKey) }
 func NewUserID() string        { return NewID(PrefixUser) }
+func NewFileID() string        { return NewID(PrefixFile) }
+func NewResourceID() string    { return NewID(PrefixResource) }

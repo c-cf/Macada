@@ -395,6 +395,73 @@ func (m *mockAPIKeyRepo) Revoke(_ context.Context, _ string, _ string) (*domain.
 func (m *mockAPIKeyRepo) Delete(_ context.Context, _ string, _ string) error { return nil }
 func (m *mockAPIKeyRepo) TouchLastUsed(_ context.Context, _ string) error    { return nil }
 
+type mockFileRepo struct {
+	mu   sync.RWMutex
+	data map[string]*domain.File
+}
+
+func newMockFileRepo() *mockFileRepo {
+	return &mockFileRepo{data: make(map[string]*domain.File)}
+}
+
+func (m *mockFileRepo) Create(_ context.Context, f *domain.File) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.data[f.ID] = f
+	return nil
+}
+func (m *mockFileRepo) GetByID(_ context.Context, id string) (*domain.File, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	f, ok := m.data[id]
+	if !ok {
+		return nil, fmt.Errorf("not found")
+	}
+	return f, nil
+}
+func (m *mockFileRepo) List(_ context.Context, _ domain.FileListParams) ([]*domain.File, *string, error) {
+	return nil, nil, nil
+}
+func (m *mockFileRepo) Delete(_ context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.data, id)
+	return nil
+}
+
+type mockResourceRepo struct {
+	mu   sync.RWMutex
+	data map[string]*domain.SessionResource
+}
+
+func newMockResourceRepo() *mockResourceRepo {
+	return &mockResourceRepo{data: make(map[string]*domain.SessionResource)}
+}
+
+func (m *mockResourceRepo) Create(_ context.Context, r *domain.SessionResource) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.data[r.ID] = r
+	return nil
+}
+func (m *mockResourceRepo) GetByID(_ context.Context, id string) (*domain.SessionResource, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	r, ok := m.data[id]
+	if !ok {
+		return nil, fmt.Errorf("not found")
+	}
+	return r, nil
+}
+func (m *mockResourceRepo) ListBySession(_ context.Context, _ string, _ domain.ListParams) ([]*domain.SessionResource, *string, error) {
+	return nil, nil, nil
+}
+func (m *mockResourceRepo) Update(_ context.Context, _ *domain.SessionResource) error { return nil }
+func (m *mockResourceRepo) Delete(_ context.Context, _ string) error                  { return nil }
+func (m *mockResourceRepo) ListFileResourcesBySession(_ context.Context, _ string) ([]*domain.SessionResource, error) {
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // Test setup helpers
 // ---------------------------------------------------------------------------
@@ -415,6 +482,8 @@ func newTestHarness() *testHarness {
 	eventBus := &mockEventBus{}
 	runner := &mockSessionRunner{}
 	skillRepo := newMockSkillRepo()
+	fileRepo := newMockFileRepo()
+	resourceRepo := newMockResourceRepo()
 
 	wsRepo := &mockWorkspaceRepo{}
 	apiKeyRepo := &mockAPIKeyRepo{}
@@ -425,7 +494,7 @@ func newTestHarness() *testHarness {
 	router := api.NewRouter(api.Deps{
 		EnvironmentHandler: handler.NewEnvironmentHandler(envRepo),
 		AgentHandler:       handler.NewAgentHandler(agentRepo),
-		SessionHandler:     handler.NewSessionHandler(sessionRepo, agentRepo, envRepo),
+		SessionHandler:     handler.NewSessionHandler(sessionRepo, agentRepo, envRepo, resourceRepo, fileRepo),
 		EventHandler:       handler.NewEventHandler(eventRepo, sessionRepo, eventBus, runner),
 		SkillHandler:       handler.NewSkillHandler(skillRepo),
 		WorkspaceHandler:   wsHandler,

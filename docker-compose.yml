@@ -49,8 +49,10 @@ services:
       LOG_LEVEL: debug
       DOCKER_HOST: unix:///var/run/docker.sock
       SANDBOX_NETWORK: macada_internal
+      FILE_STORAGE_PATH: /data/files
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - filedata:/data/files
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,10 +66,12 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_ vars are baked into JS at build time by Next.js
+        NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-8080}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
-      # Browser-side API URL: must be accessible from user's browser (host network)
       NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-8080}
     depends_on:
       - backend
@@ -88,3 +92,4 @@ networks:
 
 volumes:
   pgdata:
+  filedata:

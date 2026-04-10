@@ -18,6 +18,7 @@ import (
 	rtctx "github.com/c-cf/macada/internal/runtime/context"
 	"github.com/c-cf/macada/internal/sandbox"
 	"github.com/c-cf/macada/internal/service"
+	"github.com/c-cf/macada/internal/storage"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -73,6 +74,13 @@ func main() {
 	defer func() { _ = redisClient.Close() }()
 	log.Info().Msg("connected to Redis")
 
+	// Initialize file storage
+	fileStorage, err := storage.NewLocalStorage(cfg.FileStoragePath)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize file storage")
+	}
+	log.Info().Str("path", cfg.FileStoragePath).Msg("file storage initialized")
+
 	// Initialize repositories
 	envRepo := postgres.NewEnvironmentRepo(pool)
 	agentRepo := postgres.NewAgentRepo(pool)
@@ -84,6 +92,8 @@ func main() {
 	apiKeyRepo := postgres.NewAPIKeyRepo(pool)
 	userRepo := postgres.NewUserRepo(pool)
 	memberRepo := postgres.NewWorkspaceMemberRepo(pool)
+	fileRepo := postgres.NewFileRepo(pool)
+	resourceRepo := postgres.NewResourceRepo(pool)
 
 	// Initialize event bus
 	eventBus := redisinfra.NewEventBus(redisClient)
@@ -103,6 +113,7 @@ func main() {
 		compressor,
 		sessionRepo, eventRepo, eventBus,
 		skillRepo, envRepo, analyticsRepo,
+		resourceRepo, fileRepo, fileStorage,
 	)
 
 	// Initialize auth service
@@ -111,11 +122,13 @@ func main() {
 	// Initialize handlers
 	envHandler := handler.NewEnvironmentHandler(envRepo)
 	agentHandler := handler.NewAgentHandler(agentRepo)
-	sessionHandler := handler.NewSessionHandler(sessionRepo, agentRepo, envRepo)
+	sessionHandler := handler.NewSessionHandler(sessionRepo, agentRepo, envRepo, resourceRepo, fileRepo)
 	eventHandler := handler.NewEventHandler(eventRepo, sessionRepo, eventBus, orchestrator)
 	analyticsHandler := handler.NewAnalyticsHandler(analyticsRepo)
 	skillHandler := handler.NewSkillHandler(skillRepo)
-	internalHandler := handler.NewInternalHandler(eventRepo, sessionRepo, eventBus, analyticsRepo, tokenGen)
+	fileHandler := handler.NewFileHandler(fileRepo, fileStorage)
+	resourceHandler := handler.NewResourceHandler(resourceRepo, sessionRepo, fileRepo)
+	internalHandler := handler.NewInternalHandler(eventRepo, sessionRepo, eventBus, analyticsRepo, tokenGen, fileHandler)
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo, workspaceRepo)
 	bootstrapHandler := handler.NewBootstrapHandler(cfg.AdminSecret, workspaceRepo, apiKeyRepo)
@@ -134,6 +147,8 @@ func main() {
 		APIKeyHandler:      apiKeyHandler,
 		BootstrapHandler:   bootstrapHandler,
 		AuthHandler:        authHandler,
+		FileHandler:        fileHandler,
+		ResourceHandler:    resourceHandler,
 		APIKeyRepo:         apiKeyRepo,
 		JWTValidator:       authService,
 		MemberRepo:         memberRepo,

@@ -9,6 +9,8 @@ import type {
   LoginResult,
   RegisterResult,
   WorkspaceInfo,
+  FileMetadata,
+  SessionResource,
 } from "./types";
 
 const API_BASE =
@@ -262,6 +264,11 @@ export function createSession(body: {
   environment_id: string;
   title?: string;
   metadata?: Record<string, string>;
+  resources?: readonly {
+    type: "file";
+    file_id: string;
+    mount_path?: string;
+  }[];
 }): Promise<Session> {
   return postJSON("/v1/sessions", body);
 }
@@ -271,6 +278,95 @@ export function sendSessionEvents(
   events: readonly { type: string; content?: string; [key: string]: unknown }[]
 ): Promise<unknown> {
   return postJSON(`/v1/sessions/${sessionId}/events`, { events });
+}
+
+// ── Files ───────────────────────────────────────────────────────────
+
+function authHeadersNoContentType(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const wsId = getWorkspaceId();
+  if (wsId) {
+    headers["X-Workspace-Id"] = wsId;
+  }
+  return headers;
+}
+
+export async function uploadFile(file: File): Promise<FileMetadata> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE}/v1/files`, {
+    method: "POST",
+    headers: authHeadersNoContentType(),
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+export function listFiles(params?: {
+  limit?: number;
+  page?: string;
+}): Promise<ListResponse<FileMetadata>> {
+  const search = new URLSearchParams();
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.page) search.set("page", params.page);
+  const qs = search.toString();
+  return fetchJSON(`/v1/files${qs ? `?${qs}` : ""}`);
+}
+
+export function getFileMetadata(id: string): Promise<FileMetadata> {
+  return fetchJSON(`/v1/files/${id}`);
+}
+
+export async function downloadFile(id: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/v1/files/${id}/content`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.blob();
+}
+
+export function deleteFile(id: string): Promise<{ id: string; type: string }> {
+  return deleteJSON(`/v1/files/${id}`);
+}
+
+// ── Session Resources ───────────────────────────────────────────────
+
+export function addSessionResource(
+  sessionId: string,
+  body: { type: "file"; file_id: string; mount_path?: string }
+): Promise<SessionResource> {
+  return postJSON(`/v1/sessions/${sessionId}/resources`, body);
+}
+
+export function listSessionResources(
+  sessionId: string,
+  params?: { limit?: number; page?: string }
+): Promise<ListResponse<SessionResource>> {
+  const search = new URLSearchParams();
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.page) search.set("page", params.page);
+  const qs = search.toString();
+  return fetchJSON(
+    `/v1/sessions/${sessionId}/resources${qs ? `?${qs}` : ""}`
+  );
+}
+
+export function deleteSessionResource(
+  sessionId: string,
+  resourceId: string
+): Promise<{ id: string; type: string }> {
+  return deleteJSON(`/v1/sessions/${sessionId}/resources/${resourceId}`);
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────

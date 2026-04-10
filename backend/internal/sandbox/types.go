@@ -29,6 +29,12 @@ type SandboxInfo struct {
 	LastHeartbeatAt *time.Time    `json:"last_heartbeat_at,omitempty"`
 }
 
+// FileMount describes a file to be mounted into the container.
+type FileMount struct {
+	MountPath string // absolute path in container (e.g. /mnt/session/uploads/file_xxx)
+	Content   []byte // file content
+}
+
 // DeployManifest holds all data needed to write config files into a sandbox.
 type DeployManifest struct {
 	Agent          AgentConfigFile
@@ -39,6 +45,7 @@ type DeployManifest struct {
 	Skills         []SkillManifest
 	Packages       domain.Packages
 	SessionMemory  *svcctx.SessionMemory
+	FileMounts     []FileMount
 }
 
 // SkillManifest holds a resolved skill ready for filesystem deployment.

@@ -19,6 +19,7 @@ const NAV_ITEMS: readonly NavItem[] = [
       { label: "Agents", href: "/agents" },
       { label: "Sessions", href: "/sessions" },
       { label: "Environments", href: "/environments" },
+      { label: "Files", href: "/files" },
     ],
   },
   {

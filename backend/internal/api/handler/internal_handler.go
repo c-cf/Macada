@@ -21,6 +21,7 @@ type InternalHandler struct {
 	eventBus      domain.EventBus
 	analyticsRepo *postgres.AnalyticsRepo
 	tokenGen      *sandbox.TokenGenerator
+	fileHandler   *FileHandler // for internal file uploads
 }
 
 // NewInternalHandler creates a new internal event handler.
@@ -30,6 +31,7 @@ func NewInternalHandler(
 	eventBus domain.EventBus,
 	analyticsRepo *postgres.AnalyticsRepo,
 	tokenGen *sandbox.TokenGenerator,
+	fileHandler *FileHandler,
 ) *InternalHandler {
 	return &InternalHandler{
 		eventRepo:     eventRepo,
@@ -37,6 +39,7 @@ func NewInternalHandler(
 		eventBus:      eventBus,
 		analyticsRepo: analyticsRepo,
 		tokenGen:      tokenGen,
+		fileHandler:   fileHandler,
 	}
 }
 
@@ -68,6 +71,11 @@ func (h *InternalHandler) IngestEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, ie := range req.Events {
+		// Skip heartbeat events — they are keepalive signals and should not be persisted.
+		if ie.Type == domain.EventTypeRuntimeHeartbeat {
+			continue
+		}
+
 		payload := ie.Payload
 		if payload == nil {
 			payload = json.RawMessage("{}")
@@ -110,6 +118,28 @@ func (h *InternalHandler) IngestEvents(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// UploadFile handles internal file upload from sandbox runtime.
+func (h *InternalHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
+	sessionID := chi.URLParam(r, "session_id")
+
+	// Validate sandbox token
+	authHeader := r.Header.Get("Authorization")
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token == "" || !h.tokenGen.Validate(sessionID, token) {
+		writeError(w, http.StatusUnauthorized, "invalid sandbox token")
+		return
+	}
+
+	// Look up session to get workspace ID
+	session, err := h.sessionRepo.GetByID(r.Context(), sessionID)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "session not found")
+		return
+	}
+
+	h.fileHandler.UploadInternal(w, r, session.WorkspaceID)
+}
+
 func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string, payload json.RawMessage) {
 	var data struct {
 		ModelUsage domain.ModelUsage `json:"model_usage"`
@@ -147,4 +177,21 @@ func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string,
 	_ = h.analyticsRepo.InsertRequestLog(ctx, logEntry)
 	_ = h.analyticsRepo.IncrementDailyUsage(ctx, session.WorkspaceID, now, logEntry.Model,
 		logEntry.InputTokens, logEntry.OutputTokens, logEntry.CacheReadTokens, logEntry.CacheCreationTokens)
+
+	// Incrementally update session usage totals
+	usage := session.Usage
+	input := valOrZero(usage.InputTokens) + data.ModelUsage.InputTokens
+	output := valOrZero(usage.OutputTokens) + data.ModelUsage.OutputTokens
+	cacheRead := valOrZero(usage.CacheReadInputTokens) + data.ModelUsage.CacheReadInputTokens
+	usage.InputTokens = &input
+	usage.OutputTokens = &output
+	usage.CacheReadInputTokens = &cacheRead
+	_ = h.sessionRepo.UpdateUsage(ctx, sessionID, usage)
+}
+
+func valOrZero(p *int64) int64 {
+	if p == nil {
+		return 0
+	}
+	return *p
 }

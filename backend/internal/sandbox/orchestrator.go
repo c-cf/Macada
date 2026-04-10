@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/c-cf/macada/internal/domain"
 	"github.com/c-cf/macada/internal/infra/postgres"
 	rtctx "github.com/c-cf/macada/internal/runtime/context"
+	"github.com/c-cf/macada/internal/storage"
 	"github.com/rs/zerolog/log"
 )
 
@@ -43,6 +45,9 @@ type Orchestrator struct {
 	skillRepo     domain.SkillRepository
 	envRepo       domain.EnvironmentRepository
 	analyticsRepo *postgres.AnalyticsRepo
+	resourceRepo  domain.ResourceRepository
+	fileRepo      domain.FileRepository
+	fileStorage   *storage.LocalStorage
 
 	mu        sync.Mutex
 	sandboxes map[string]*SandboxInfo // sessionID -> sandbox
@@ -59,6 +64,9 @@ func NewOrchestrator(
 	skillRepo domain.SkillRepository,
 	envRepo domain.EnvironmentRepository,
 	analyticsRepo *postgres.AnalyticsRepo,
+	resourceRepo domain.ResourceRepository,
+	fileRepo domain.FileRepository,
+	fileStorage *storage.LocalStorage,
 ) *Orchestrator {
 	return &Orchestrator{
 		config:        config,
@@ -72,6 +80,9 @@ func NewOrchestrator(
 		skillRepo:     skillRepo,
 		envRepo:       envRepo,
 		analyticsRepo: analyticsRepo,
+		resourceRepo:  resourceRepo,
+		fileRepo:      fileRepo,
+		fileStorage:   fileStorage,
 		sandboxes:     make(map[string]*SandboxInfo),
 	}
 }
@@ -279,6 +290,34 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 	// Generate token
 	token := o.tokenGen.Generate(sessionID)
 
+	// Resolve file resources to mount
+	var fileMounts []FileMount
+	if o.resourceRepo != nil && o.fileRepo != nil && o.fileStorage != nil {
+		fileResources, err := o.resourceRepo.ListFileResourcesBySession(ctx, sessionID)
+		if err != nil {
+			log.Warn().Err(err).Str("session_id", sessionID).Msg("failed to list file resources")
+		}
+		for _, res := range fileResources {
+			if res.FileID == nil {
+				continue
+			}
+			file, err := o.fileRepo.GetByID(ctx, *res.FileID)
+			if err != nil {
+				log.Warn().Err(err).Str("file_id", *res.FileID).Msg("file not found, skipping mount")
+				continue
+			}
+			content, err := o.fileStorage.ReadAll(file.StoragePath)
+			if err != nil {
+				log.Warn().Err(err).Str("file_id", *res.FileID).Msg("failed to read file, skipping mount")
+				continue
+			}
+			fileMounts = append(fileMounts, FileMount{
+				MountPath: res.MountPath,
+				Content:   content,
+			})
+		}
+	}
+
 	// Build deploy manifest
 	manifest := DeployManifest{
 		Agent: AgentConfigFile{
@@ -296,6 +335,7 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		MCPServers:   agentSnap.MCPServers,
 		Skills:       skills,
 		Packages:     env.Config.Packages,
+		FileMounts:   fileMounts,
 	}
 
 	// 1. Create container (not started yet)
@@ -318,6 +358,15 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 	if err := o.docker.CopyToContainer(ctx, containerID, "/workspace", configFiles); err != nil {
 		_ = o.docker.Remove(ctx, containerID)
 		return nil, fmt.Errorf("deploy config: %w", err)
+	}
+
+	// 2b. Copy file mounts into container (read-only files at their mount paths)
+	if len(manifest.FileMounts) > 0 {
+		fileTar := o.buildFileMountTar(manifest.FileMounts)
+		if err := o.docker.CopyToContainer(ctx, containerID, "/", fileTar); err != nil {
+			_ = o.docker.Remove(ctx, containerID)
+			return nil, fmt.Errorf("deploy file mounts: %w", err)
+		}
 	}
 
 	// 3. Start container (runtime can now read config immediately)
@@ -401,6 +450,19 @@ func (o *Orchestrator) buildConfigTar(manifest DeployManifest) map[string][]byte
 		}
 	}
 
+	return files
+}
+
+// buildFileMountTar creates a tar file map for file resources.
+// Mount paths are absolute (e.g. /mnt/session/uploads/file_xxx).
+// When CopyToContainer copies to "/" the tar entry path becomes the full path.
+func (o *Orchestrator) buildFileMountTar(mounts []FileMount) map[string][]byte {
+	files := map[string][]byte{}
+	for _, m := range mounts {
+		// Strip leading "/" so tar path is relative to the destPath "/"
+		path := strings.TrimPrefix(m.MountPath, "/")
+		files[path] = m.Content
+	}
 	return files
 }
 

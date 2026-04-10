@@ -19,6 +19,7 @@ type Config struct {
 	NetworkName     string
 	AdminSecret     string
 	JWTSecret       string
+	FileStoragePath string
 }
 
 func Load() (*Config, error) {
@@ -73,6 +74,11 @@ func Load() (*Config, error) {
 		jwtSecret = "change-me-in-production"
 	}
 
+	fileStoragePath := os.Getenv("FILE_STORAGE_PATH")
+	if fileStoragePath == "" {
+		fileStoragePath = "/data/files"
+	}
+
 	return &Config{
 		Port:            port,
 		DatabaseURL:     dbURL,
@@ -86,5 +92,6 @@ func Load() (*Config, error) {
 		NetworkName:     networkName,
 		AdminSecret:     adminSecret,
 		JWTSecret:       jwtSecret,
+		FileStoragePath: fileStoragePath,
 	}, nil
 }
