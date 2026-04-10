@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime"
@@ -267,10 +266,3 @@ func detectMimeType(filename, headerType string) string {
 	}
 }
 
-// defaultJSONRaw returns raw if non-empty, otherwise the fallback string as RawMessage.
-func defaultJSONRaw(raw json.RawMessage, fallback string) json.RawMessage {
-	if len(raw) == 0 {
-		return json.RawMessage(fallback)
-	}
-	return raw
-}

@@ -16,12 +16,13 @@ import (
 
 // InternalHandler handles events arriving from sandbox runtimes.
 type InternalHandler struct {
-	eventRepo     domain.EventRepository
-	sessionRepo   domain.SessionRepository
-	eventBus      domain.EventBus
-	analyticsRepo *postgres.AnalyticsRepo
-	tokenGen      *sandbox.TokenGenerator
-	fileHandler   *FileHandler // for internal file uploads
+	eventRepo          domain.EventRepository
+	sessionRepo        domain.SessionRepository
+	eventBus           domain.EventBus
+	analyticsRepo      *postgres.AnalyticsRepo
+	tokenGen           *sandbox.TokenGenerator
+	fileHandler        *FileHandler // for internal file uploads
+	heartbeatRecorder  sandbox.HeartbeatRecorder
 }
 
 // NewInternalHandler creates a new internal event handler.
@@ -32,14 +33,16 @@ func NewInternalHandler(
 	analyticsRepo *postgres.AnalyticsRepo,
 	tokenGen *sandbox.TokenGenerator,
 	fileHandler *FileHandler,
+	heartbeatRecorder sandbox.HeartbeatRecorder,
 ) *InternalHandler {
 	return &InternalHandler{
-		eventRepo:     eventRepo,
-		sessionRepo:   sessionRepo,
-		eventBus:      eventBus,
-		analyticsRepo: analyticsRepo,
-		tokenGen:      tokenGen,
-		fileHandler:   fileHandler,
+		eventRepo:         eventRepo,
+		sessionRepo:       sessionRepo,
+		eventBus:          eventBus,
+		analyticsRepo:     analyticsRepo,
+		tokenGen:          tokenGen,
+		fileHandler:       fileHandler,
+		heartbeatRecorder: heartbeatRecorder,
 	}
 }
 
@@ -71,8 +74,11 @@ func (h *InternalHandler) IngestEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, ie := range req.Events {
-		// Skip heartbeat events — they are keepalive signals and should not be persisted.
+		// Heartbeat events update the sandbox's last-seen timestamp but are not persisted.
 		if ie.Type == domain.EventTypeRuntimeHeartbeat {
+			if h.heartbeatRecorder != nil {
+				h.heartbeatRecorder.RecordHeartbeat(sessionID)
+			}
 			continue
 		}
 

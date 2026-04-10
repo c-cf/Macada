@@ -18,9 +18,11 @@ import (
 )
 
 const (
-	healthPollInterval = 500 * time.Millisecond
-	healthPollTimeout  = 60 * time.Second
-	runtimePort        = 9090
+	healthPollInterval      = 500 * time.Millisecond
+	healthPollTimeout       = 60 * time.Second
+	runtimePort             = 9090
+	heartbeatStaleThreshold = 90 * time.Second // 3 missed heartbeats (30s interval)
+	watcherInterval         = 30 * time.Second
 )
 
 // OrchestratorConfig holds settings for the sandbox orchestrator.
@@ -48,8 +50,9 @@ type Orchestrator struct {
 	fileRepo      domain.FileRepository
 	fileStorage   *storage.LocalStorage
 
-	mu        sync.Mutex
-	sandboxes map[string]*SandboxInfo // sessionID -> sandbox
+	mu          sync.Mutex
+	sandboxes   map[string]*SandboxInfo // sessionID -> sandbox
+	watcherOnce sync.Once
 }
 
 // NewOrchestrator creates a new sandbox orchestrator.
@@ -95,7 +98,7 @@ func (o *Orchestrator) Run(ctx context.Context, sessionID string, events []domai
 	sbx, err := o.ensureSandbox(bgCtx, sessionID)
 	if err != nil {
 		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to provision sandbox")
-		o.emitEvent(bgCtx, sessionID, "runtime.error", map[string]string{"error": err.Error()})
+		o.emitEvent(bgCtx, sessionID, domain.EventTypeRuntimeError, map[string]string{"error": err.Error()})
 		return err
 	}
 
@@ -108,7 +111,18 @@ func (o *Orchestrator) Run(ctx context.Context, sessionID string, events []domai
 
 	// Forward to runtime
 	if err := o.forwardPayload(bgCtx, sbx, payload); err != nil {
-		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to forward payload")
+		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to forward payload to runtime")
+		o.emitEvent(bgCtx, sessionID, domain.EventTypeRuntimeError, map[string]string{
+			"error":  err.Error(),
+			"reason": "forward_failed",
+		})
+		_ = o.sessionRepo.UpdateStatus(bgCtx, sessionID, domain.SessionStatusIdle)
+
+		// Remove stale sandbox so next attempt provisions fresh
+		o.mu.Lock()
+		delete(o.sandboxes, sessionID)
+		o.mu.Unlock()
+
 		return err
 	}
 
@@ -199,6 +213,99 @@ func contextWindowForModel(modelID string) int {
 		return 200_000
 	default:
 		return 200_000
+	}
+}
+
+// StartWatcher launches a background goroutine that periodically checks for
+// sandboxes whose heartbeat has gone stale, emitting runtime.stopped events and
+// cleaning up the in-memory sandbox entry so the next user message provisions fresh.
+func (o *Orchestrator) StartWatcher(ctx context.Context) {
+	o.watcherOnce.Do(func() {
+		go o.watchHeartbeats(ctx)
+	})
+}
+
+func (o *Orchestrator) watchHeartbeats(ctx context.Context) {
+	ticker := time.NewTicker(watcherInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			o.checkStaleHeartbeats(ctx)
+		}
+	}
+}
+
+func (o *Orchestrator) checkStaleHeartbeats(ctx context.Context) {
+	now := time.Now().UTC()
+
+	o.mu.Lock()
+	var stale []string
+	for sessionID, sbx := range o.sandboxes {
+		if sbx.Status != SandboxStatusRunning {
+			continue
+		}
+		ref := sbx.CreatedAt
+		if sbx.LastHeartbeatAt != nil {
+			ref = *sbx.LastHeartbeatAt
+		}
+		if now.Sub(ref) > heartbeatStaleThreshold {
+			stale = append(stale, sessionID)
+		}
+	}
+	o.mu.Unlock()
+
+	for _, sessionID := range stale {
+		o.handleStaleSandbox(ctx, sessionID)
+	}
+}
+
+func (o *Orchestrator) handleStaleSandbox(ctx context.Context, sessionID string) {
+	// Re-check under lock: a heartbeat may have arrived since the snapshot.
+	o.mu.Lock()
+	sbx, ok := o.sandboxes[sessionID]
+	if !ok || sbx.Status != SandboxStatusRunning {
+		o.mu.Unlock()
+		return
+	}
+	ref := sbx.CreatedAt
+	if sbx.LastHeartbeatAt != nil {
+		ref = *sbx.LastHeartbeatAt
+	}
+	if time.Since(ref) <= heartbeatStaleThreshold {
+		o.mu.Unlock()
+		return
+	}
+	containerID := sbx.ContainerID
+	delete(o.sandboxes, sessionID)
+	o.mu.Unlock()
+
+	log.Warn().Str("session_id", sessionID).Msg("sandbox heartbeat timeout — marking as stopped")
+
+	o.emitEvent(ctx, sessionID, domain.EventTypeRuntimeStopped, map[string]string{
+		"reason": "heartbeat_timeout",
+	})
+	_ = o.sessionRepo.UpdateStatus(ctx, sessionID, domain.SessionStatusIdle)
+
+	// Best-effort container cleanup
+	if containerID != "" && o.docker != nil {
+		go func() {
+			_ = o.docker.Stop(context.Background(), containerID)
+			_ = o.docker.Remove(context.Background(), containerID)
+		}()
+	}
+}
+
+// RecordHeartbeat updates the last heartbeat timestamp for the given session's sandbox.
+func (o *Orchestrator) RecordHeartbeat(sessionID string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if sbx, ok := o.sandboxes[sessionID]; ok {
+		now := time.Now().UTC()
+		sbx.LastHeartbeatAt = &now
 	}
 }
 
@@ -379,13 +486,15 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		return nil, fmt.Errorf("runtime not healthy: %w", err)
 	}
 
+	now := time.Now().UTC()
 	sbx := &SandboxInfo{
-		ID:          containerName,
-		SessionID:   sessionID,
-		ContainerID: containerID,
-		ContainerIP: info.IP,
-		Status:      SandboxStatusRunning,
-		CreatedAt:   time.Now().UTC(),
+		ID:              containerName,
+		SessionID:       sessionID,
+		ContainerID:     containerID,
+		ContainerIP:     info.IP,
+		Status:          SandboxStatusRunning,
+		CreatedAt:       now,
+		LastHeartbeatAt: &now,
 	}
 
 	o.mu.Lock()

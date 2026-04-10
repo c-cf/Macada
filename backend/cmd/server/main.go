@@ -115,6 +115,11 @@ func main() {
 		resourceRepo, fileRepo, fileStorage,
 	)
 
+	// Start sandbox heartbeat watcher (cancelled on shutdown)
+	watcherCtx, watcherCancel := context.WithCancel(context.Background())
+	defer watcherCancel()
+	orchestrator.StartWatcher(watcherCtx)
+
 	// Initialize auth service
 	authService := service.NewAuthService(userRepo, workspaceRepo, memberRepo, cfg.JWTSecret)
 
@@ -127,7 +132,7 @@ func main() {
 	skillHandler := handler.NewSkillHandler(skillRepo)
 	fileHandler := handler.NewFileHandler(fileRepo, fileStorage)
 	resourceHandler := handler.NewResourceHandler(resourceRepo, sessionRepo, fileRepo)
-	internalHandler := handler.NewInternalHandler(eventRepo, sessionRepo, eventBus, analyticsRepo, tokenGen, fileHandler)
+	internalHandler := handler.NewInternalHandler(eventRepo, sessionRepo, eventBus, analyticsRepo, tokenGen, fileHandler, orchestrator)
 	llmProxyHandler := handler.NewLLMProxyHandler(cfg.AnthropicKey, tokenGen)
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceRepo)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyRepo, workspaceRepo)

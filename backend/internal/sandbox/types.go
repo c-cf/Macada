@@ -18,6 +18,11 @@ const (
 	SandboxStatusError    SandboxStatus = "error"
 )
 
+// HeartbeatRecorder records heartbeat signals from sandbox runtimes.
+type HeartbeatRecorder interface {
+	RecordHeartbeat(sessionID string)
+}
+
 // SandboxInfo tracks a running sandbox container.
 type SandboxInfo struct {
 	ID              string        `json:"id"`

@@ -49,7 +49,7 @@ func executeListDir(_ context.Context, workDir string, input json.RawMessage) To
 		sb.WriteString(name + "\n")
 	}
 	if truncated {
-		sb.WriteString(fmt.Sprintf("\n[showing first %d entries]", maxDirEntries))
+		fmt.Fprintf(&sb, "\n[showing first %d entries]", maxDirEntries)
 	}
 
 	return ToolResult{Content: sb.String(), IsError: false}

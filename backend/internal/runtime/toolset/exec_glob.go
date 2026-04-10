@@ -95,7 +95,7 @@ func executeGlob(_ context.Context, workDir string, input json.RawMessage) ToolR
 		sb.WriteString(m.path + "\n")
 	}
 	if truncated {
-		sb.WriteString(fmt.Sprintf("\n[showing first %d results]", maxGlobResults))
+		fmt.Fprintf(&sb, "\n[showing first %d results]", maxGlobResults)
 	}
 
 	return ToolResult{Content: sb.String(), IsError: false}
