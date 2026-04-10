@@ -91,10 +91,6 @@ func NewOrchestrator(
 func (o *Orchestrator) Run(ctx context.Context, sessionID string, events []domain.SendEventParams) error {
 	bgCtx := context.Background()
 
-	// Update session status
-	_ = o.sessionRepo.UpdateStatus(bgCtx, sessionID, domain.SessionStatusRunning)
-	o.emitEvent(bgCtx, sessionID, domain.EventTypeSessionRunning, nil)
-
 	// Ensure sandbox is running
 	sbx, err := o.ensureSandbox(bgCtx, sessionID)
 	if err != nil {
