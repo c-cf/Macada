@@ -11,6 +11,7 @@ import type {
   WorkspaceInfo,
   FileMetadata,
   SessionResource,
+  Skill,
 } from "./types";
 
 const API_BASE =
@@ -367,6 +368,46 @@ export function deleteSessionResource(
   resourceId: string
 ): Promise<{ id: string; type: string }> {
   return deleteJSON(`/v1/sessions/${sessionId}/resources/${resourceId}`);
+}
+
+// ── Skills ───────────────────────────────────────────────────────────────
+
+export function listSkills(params?: {
+  limit?: number;
+  page?: string;
+}): Promise<ListResponse<Skill>> {
+  const search = new URLSearchParams();
+  if (params?.limit) search.set("limit", String(params.limit));
+  if (params?.page) search.set("page", params.page);
+  const qs = search.toString();
+  return fetchJSON(`/v1/skills${qs ? `?${qs}` : ""}`);
+}
+
+export function getSkill(id: string): Promise<Skill> {
+  return fetchJSON(`/v1/skills/${id}`);
+}
+
+export function createSkillFromMarkdown(content: string): Promise<Skill> {
+  return postJSON("/v1/skills", { content });
+}
+
+export async function createSkillFromZip(file: File): Promise<Skill> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`${API_BASE}/v1/skills`, {
+    method: "POST",
+    headers: authHeadersNoContentType(),
+    body: formData,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API error ${res.status}: ${text}`);
+  }
+  return res.json();
+}
+
+export function deleteSkill(id: string): Promise<{ id: string; deleted: boolean }> {
+  return deleteJSON(`/v1/skills/${id}`);
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────

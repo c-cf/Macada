@@ -220,3 +220,19 @@ export interface LogsResponse {
   readonly data: LogEntry[];
   readonly next_page: string | null;
 }
+
+// Skills API types
+
+export interface Skill {
+  readonly id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly license: string;
+  readonly compatibility: string;
+  readonly allowed_tools: string;
+  readonly metadata: Record<string, string>;
+  readonly content: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+  readonly type: "skill";
+}

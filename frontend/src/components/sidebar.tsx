@@ -13,13 +13,19 @@ interface NavItem {
 
 const NAV_ITEMS: readonly NavItem[] = [
   {
+    label: "Build",
+    children: [
+      { label: "Skills", href: "/skills" },
+      { label: "Files", href: "/files" },
+    ],
+  },
+  {
     label: "Agents",
     children: [
       { label: "Quick Start", href: "/quick-start" },
       { label: "Agents", href: "/agents" },
       { label: "Sessions", href: "/sessions" },
       { label: "Environments", href: "/environments" },
-      { label: "Files", href: "/files" },
     ],
   },
   {
