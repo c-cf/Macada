@@ -258,6 +258,10 @@ export function deleteEnvironment(
   return deleteJSON(`/v1/environments/${id}`);
 }
 
+export function archiveSession(id: string): Promise<Session> {
+  return postJSON(`/v1/sessions/${id}/archive`, {});
+}
+
 // ── Sessions (create / events) ──────────────────────────────────────────
 
 export function createSession(body: {

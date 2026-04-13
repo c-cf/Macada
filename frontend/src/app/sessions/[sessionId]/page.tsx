@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
-import { getSession, listSessionEvents } from "@/lib/api";
+import { useParams, useRouter } from "next/navigation";
+import { getSession, listSessionEvents, archiveSession } from "@/lib/api";
 import type { Session, SessionEvent } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
@@ -572,6 +572,7 @@ function EventDetail({
 
 export default function SessionDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const sessionId = params.sessionId as string;
 
   const [session, setSession] = useState<Session | null>(null);
@@ -583,6 +584,7 @@ export default function SessionDetailPage() {
   );
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [debugFilter, setDebugFilter] = useState<DebugFilterValue>("all");
+  const [archiving, setArchiving] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -607,6 +609,19 @@ export default function SessionDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleArchive = async () => {
+    setArchiving(true);
+    try {
+      await archiveSession(sessionId);
+      router.push("/sessions");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to archive session"
+      );
+      setArchiving(false);
+    }
+  };
 
   const timings = useMemo(
     () =>
@@ -648,6 +663,21 @@ export default function SessionDetailPage() {
           { label: "Sessions", href: "/sessions" },
           { label: truncateId(session.id, 20) },
         ]}
+        actions={
+          !session.archived_at ? (
+            <button
+              onClick={handleArchive}
+              disabled={archiving}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground bg-card border border-border rounded-lg hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {archiving ? "Archiving..." : "Archive"}
+            </button>
+          ) : (
+            <span className="px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted border border-border rounded-lg">
+              Archived
+            </span>
+          )
+        }
       />
 
       {/* Session metadata */}
