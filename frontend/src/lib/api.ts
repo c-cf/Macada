@@ -48,9 +48,13 @@ function authHeaders(): Record<string, string> {
   return headers;
 }
 
-async function fetchJSON<T>(path: string): Promise<T> {
+async function fetchJSON<T>(
+  path: string,
+  signal?: AbortSignal
+): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: authHeaders(),
+    signal,
   });
   if (!res.ok) {
     const body = await res.text();
@@ -59,11 +63,16 @@ async function fetchJSON<T>(path: string): Promise<T> {
   return res.json();
 }
 
-async function postJSON<T>(path: string, body: unknown): Promise<T> {
+async function postJSON<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal
+): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify(body),
+    signal,
   });
   if (!res.ok) {
     const text = await res.text();
@@ -72,10 +81,14 @@ async function postJSON<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
-async function deleteJSON<T>(path: string): Promise<T> {
+async function deleteJSON<T>(
+  path: string,
+  signal?: AbortSignal
+): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "DELETE",
     headers: authHeaders(),
+    signal,
   });
   if (!res.ok) {
     const text = await res.text();
@@ -104,21 +117,24 @@ export function listMyWorkspaces(): Promise<{ data: WorkspaceInfo[] }> {
 
 // ── Agents ───────────────────────────────────────────────────────────────
 
-export function listAgents(params?: {
-  limit?: number;
-  page?: string;
-  include_archived?: boolean;
-}): Promise<ListResponse<Agent>> {
+export function listAgents(
+  params?: {
+    limit?: number;
+    page?: string;
+    include_archived?: boolean;
+  },
+  signal?: AbortSignal
+): Promise<ListResponse<Agent>> {
   const search = new URLSearchParams();
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.page) search.set("page", params.page);
   if (params?.include_archived) search.set("include_archived", "true");
   const qs = search.toString();
-  return fetchJSON(`/v1/agents${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/v1/agents${qs ? `?${qs}` : ""}`, signal);
 }
 
-export function getAgent(id: string): Promise<Agent> {
-  return fetchJSON(`/v1/agents/${id}`);
+export function getAgent(id: string, signal?: AbortSignal): Promise<Agent> {
+  return fetchJSON(`/v1/agents/${id}`, signal);
 }
 
 export function createAgent(body: unknown): Promise<Agent> {
@@ -147,54 +163,70 @@ export function archiveAgent(id: string): Promise<Agent> {
 
 // ── Sessions ─────────────────────────────────────────────────────────────
 
-export function listSessions(params?: {
-  limit?: number;
-  page?: string;
-  agent_id?: string;
-  include_archived?: boolean;
-}): Promise<ListResponse<Session>> {
+export function listSessions(
+  params?: {
+    limit?: number;
+    page?: string;
+    agent_id?: string;
+    include_archived?: boolean;
+  },
+  signal?: AbortSignal
+): Promise<ListResponse<Session>> {
   const search = new URLSearchParams();
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.page) search.set("page", params.page);
   if (params?.agent_id) search.set("agent_id", params.agent_id);
   if (params?.include_archived) search.set("include_archived", "true");
   const qs = search.toString();
-  return fetchJSON(`/v1/sessions${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/v1/sessions${qs ? `?${qs}` : ""}`, signal);
 }
 
-export function getSession(id: string): Promise<Session> {
-  return fetchJSON(`/v1/sessions/${id}`);
+export function getSession(
+  id: string,
+  signal?: AbortSignal
+): Promise<Session> {
+  return fetchJSON(`/v1/sessions/${id}`, signal);
 }
 
 export function listSessionEvents(
   sessionId: string,
-  params?: { limit?: number; page?: string; order?: string }
+  params?: { limit?: number; page?: string; order?: string },
+  signal?: AbortSignal
 ): Promise<ListResponse<SessionEvent>> {
   const search = new URLSearchParams();
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.page) search.set("page", params.page);
   if (params?.order) search.set("order", params.order);
   const qs = search.toString();
-  return fetchJSON(`/v1/sessions/${sessionId}/events${qs ? `?${qs}` : ""}`);
+  return fetchJSON(
+    `/v1/sessions/${sessionId}/events${qs ? `?${qs}` : ""}`,
+    signal
+  );
 }
 
 // ── Environments ─────────────────────────────────────────────────────────
 
-export function listEnvironments(params?: {
-  limit?: number;
-  page?: string;
-  include_archived?: boolean;
-}): Promise<ListResponse<Environment>> {
+export function listEnvironments(
+  params?: {
+    limit?: number;
+    page?: string;
+    include_archived?: boolean;
+  },
+  signal?: AbortSignal
+): Promise<ListResponse<Environment>> {
   const search = new URLSearchParams();
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.page) search.set("page", params.page);
   if (params?.include_archived) search.set("include_archived", "true");
   const qs = search.toString();
-  return fetchJSON(`/v1/environments${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/v1/environments${qs ? `?${qs}` : ""}`, signal);
 }
 
-export function getEnvironment(id: string): Promise<Environment> {
-  return fetchJSON(`/v1/environments/${id}`);
+export function getEnvironment(
+  id: string,
+  signal?: AbortSignal
+): Promise<Environment> {
+  return fetchJSON(`/v1/environments/${id}`, signal);
 }
 
 export function createEnvironment(body: {
@@ -315,15 +347,18 @@ export async function uploadFile(file: File): Promise<FileMetadata> {
   return res.json();
 }
 
-export function listFiles(params?: {
-  limit?: number;
-  page?: string;
-}): Promise<ListResponse<FileMetadata>> {
+export function listFiles(
+  params?: {
+    limit?: number;
+    page?: string;
+  },
+  signal?: AbortSignal
+): Promise<ListResponse<FileMetadata>> {
   const search = new URLSearchParams();
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.page) search.set("page", params.page);
   const qs = search.toString();
-  return fetchJSON(`/v1/files${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/v1/files${qs ? `?${qs}` : ""}`, signal);
 }
 
 export function getFileMetadata(id: string): Promise<FileMetadata> {
@@ -376,15 +411,18 @@ export function deleteSessionResource(
 
 // ── Skills ───────────────────────────────────────────────────────────────
 
-export function listSkills(params?: {
-  limit?: number;
-  page?: string;
-}): Promise<ListResponse<Skill>> {
+export function listSkills(
+  params?: {
+    limit?: number;
+    page?: string;
+  },
+  signal?: AbortSignal
+): Promise<ListResponse<Skill>> {
   const search = new URLSearchParams();
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.page) search.set("page", params.page);
   const qs = search.toString();
-  return fetchJSON(`/v1/skills${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/v1/skills${qs ? `?${qs}` : ""}`, signal);
 }
 
 export function getSkill(id: string): Promise<Skill> {
@@ -416,26 +454,32 @@ export function deleteSkill(id: string): Promise<{ id: string; deleted: boolean 
 
 // ── Analytics ────────────────────────────────────────────────────────────
 
-export function getUsage(params: {
-  from?: string;
-  to?: string;
-  model?: string;
-}): Promise<UsageResponse> {
+export function getUsage(
+  params: {
+    from?: string;
+    to?: string;
+    model?: string;
+  },
+  signal?: AbortSignal
+): Promise<UsageResponse> {
   const search = new URLSearchParams();
   if (params.from) search.set("from", params.from);
   if (params.to) search.set("to", params.to);
   if (params.model) search.set("model", params.model);
   const qs = search.toString();
-  return fetchJSON(`/v1/analytics/usage${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/v1/analytics/usage${qs ? `?${qs}` : ""}`, signal);
 }
 
-export function getLogs(params: {
-  limit?: number;
-  page?: string;
-}): Promise<LogsResponse> {
+export function getLogs(
+  params: {
+    limit?: number;
+    page?: string;
+  },
+  signal?: AbortSignal
+): Promise<LogsResponse> {
   const search = new URLSearchParams();
   if (params.limit) search.set("limit", String(params.limit));
   if (params.page) search.set("page", params.page);
   const qs = search.toString();
-  return fetchJSON(`/v1/analytics/logs${qs ? `?${qs}` : ""}`);
+  return fetchJSON(`/v1/analytics/logs${qs ? `?${qs}` : ""}`, signal);
 }

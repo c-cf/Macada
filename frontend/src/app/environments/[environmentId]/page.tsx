@@ -122,27 +122,33 @@ export default function EnvironmentDetailPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await getEnvironment(environmentId);
-      setEnv(data);
-      setNameValue(data.name);
-      setDescValue(data.description ?? "");
-      setNetworkingForm(buildNetworkingForm(data));
-      setPackageEntries(buildPackageEntries(data));
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load environment"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [environmentId]);
+  const fetchData = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getEnvironment(environmentId, signal);
+        setEnv(data);
+        setNameValue(data.name);
+        setDescValue(data.description ?? "");
+        setNetworkingForm(buildNetworkingForm(data));
+        setPackageEntries(buildPackageEntries(data));
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load environment"
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [environmentId]
+  );
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [fetchData]);
 
   const saveField = async (body: Parameters<typeof updateEnvironment>[1]) => {

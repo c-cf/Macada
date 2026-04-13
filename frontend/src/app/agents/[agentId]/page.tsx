@@ -70,25 +70,31 @@ export default function AgentDetailPage() {
   const [activeTab, setActiveTab] = useState<"agent" | "sessions">("agent");
   const [editOpen, setEditOpen] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [agentData, sessionsData] = await Promise.all([
-        getAgent(agentId),
-        listSessions({ agent_id: agentId, limit: 20 }),
-      ]);
-      setAgent(agentData);
-      setSessions(sessionsData.data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load agent");
-    } finally {
-      setLoading(false);
-    }
-  }, [agentId]);
+  const fetchData = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [agentData, sessionsData] = await Promise.all([
+          getAgent(agentId, signal),
+          listSessions({ agent_id: agentId, limit: 20 }, signal),
+        ]);
+        setAgent(agentData);
+        setSessions(sessionsData.data);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load agent");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [agentId]
+  );
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [fetchData]);
 
   if (loading) {

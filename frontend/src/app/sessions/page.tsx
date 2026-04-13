@@ -22,28 +22,37 @@ export default function SessionsPage() {
   const [showArchived, setShowArchived] = useState(false);
   const [search, setSearch] = useState("");
 
-  const fetchSessions = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await listSessions({
-        limit: 20,
-        page: currentPage,
-        include_archived: showArchived,
-      });
-      setSessions(res.data);
-      setNextPage(res.next_page);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load sessions"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, showArchived]);
+  const fetchSessions = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await listSessions(
+          {
+            limit: 20,
+            page: currentPage,
+            include_archived: showArchived,
+          },
+          signal
+        );
+        setSessions(res.data);
+        setNextPage(res.next_page);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load sessions"
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage, showArchived]
+  );
 
   useEffect(() => {
-    fetchSessions();
+    const controller = new AbortController();
+    fetchSessions(controller.signal);
+    return () => controller.abort();
   }, [fetchSessions]);
 
   const handleArchive = async (session: Session) => {

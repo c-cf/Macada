@@ -586,28 +586,40 @@ export default function SessionDetailPage() {
   const [debugFilter, setDebugFilter] = useState<DebugFilterValue>("all");
   const [archiving, setArchiving] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [sessionData, eventsData] = await Promise.all([
-        getSession(sessionId),
-        listSessionEvents(sessionId, { limit: 100, order: "asc" }),
-      ]);
-      setSession(sessionData);
-      setEvents(eventsData.data);
-      if (eventsData.data.length > 0) {
-        setSelectedEventId(eventsData.data[0].id);
+  const fetchData = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [sessionData, eventsData] = await Promise.all([
+          getSession(sessionId, signal),
+          listSessionEvents(
+            sessionId,
+            { limit: 100, order: "asc" },
+            signal
+          ),
+        ]);
+        setSession(sessionData);
+        setEvents(eventsData.data);
+        if (eventsData.data.length > 0) {
+          setSelectedEventId(eventsData.data[0].id);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load session"
+        );
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load session");
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionId]);
+    },
+    [sessionId]
+  );
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [fetchData]);
 
   const handleArchive = async () => {

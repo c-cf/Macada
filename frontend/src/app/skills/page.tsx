@@ -19,22 +19,28 @@ export default function SkillsPage() {
   const [currentPage, setCurrentPage] = useState<string | undefined>(undefined);
   const [showUpload, setShowUpload] = useState(false);
 
-  const fetchSkills = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await listSkills({ limit: 20, page: currentPage });
-      setSkills(res.data);
-      setNextPage(res.next_page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load skills");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage]);
+  const fetchSkills = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await listSkills({ limit: 20, page: currentPage }, signal);
+        setSkills(res.data);
+        setNextPage(res.next_page);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load skills");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage]
+  );
 
   useEffect(() => {
-    fetchSkills();
+    const controller = new AbortController();
+    fetchSkills(controller.signal);
+    return () => controller.abort();
   }, [fetchSkills]);
 
   const handleNextPage = () => {

@@ -35,27 +35,36 @@ export default function EnvironmentsPage() {
   const [currentPage, setCurrentPage] = useState<string | undefined>(undefined);
   const [showCreate, setShowCreate] = useState(false);
 
-  const fetchEnvironments = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await listEnvironments({
-        limit: 20,
-        page: currentPage,
-      });
-      setEnvironments(res.data);
-      setNextPage(res.next_page);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load environments"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage]);
+  const fetchEnvironments = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await listEnvironments(
+          {
+            limit: 20,
+            page: currentPage,
+          },
+          signal
+        );
+        setEnvironments(res.data);
+        setNextPage(res.next_page);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load environments"
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage]
+  );
 
   useEffect(() => {
-    fetchEnvironments();
+    const controller = new AbortController();
+    fetchEnvironments(controller.signal);
+    return () => controller.abort();
   }, [fetchEnvironments]);
 
   const handleNextPage = () => {

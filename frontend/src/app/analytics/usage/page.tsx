@@ -267,23 +267,34 @@ export default function UsagePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUsage = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { from, to } = formatDateRange(year, month);
-      const res = await getUsage({ from, to, model: model || undefined });
-      setData(res.data);
-      setSummary(res.summary);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load usage data");
-    } finally {
-      setLoading(false);
-    }
-  }, [year, month, model]);
+  const fetchUsage = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { from, to } = formatDateRange(year, month);
+        const res = await getUsage(
+          { from, to, model: model || undefined },
+          signal
+        );
+        setData(res.data);
+        setSummary(res.summary);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(
+          err instanceof Error ? err.message : "Failed to load usage data"
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [year, month, model]
+  );
 
   useEffect(() => {
-    fetchUsage();
+    const controller = new AbortController();
+    fetchUsage(controller.signal);
+    return () => controller.abort();
   }, [fetchUsage]);
 
   const aggregated = useMemo(() => aggregateByDay(data), [data]);

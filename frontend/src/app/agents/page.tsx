@@ -24,26 +24,35 @@ export default function AgentsPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
 
-  const fetchAgents = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await listAgents({
-        limit: 20,
-        page: currentPage,
-        include_archived: showArchived,
-      });
-      setAgents(res.data);
-      setNextPage(res.next_page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load agents");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, showArchived]);
+  const fetchAgents = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await listAgents(
+          {
+            limit: 20,
+            page: currentPage,
+            include_archived: showArchived,
+          },
+          signal
+        );
+        setAgents(res.data);
+        setNextPage(res.next_page);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load agents");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage, showArchived]
+  );
 
   useEffect(() => {
-    fetchAgents();
+    const controller = new AbortController();
+    fetchAgents(controller.signal);
+    return () => controller.abort();
   }, [fetchAgents]);
 
   const handleArchive = async (agent: Agent) => {

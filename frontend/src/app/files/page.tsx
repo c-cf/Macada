@@ -28,22 +28,28 @@ export default function FilesPage() {
   const [currentPage, setCurrentPage] = useState<string | undefined>(undefined);
   const [showUpload, setShowUpload] = useState(false);
 
-  const fetchFiles = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await listFiles({ limit: 20, page: currentPage });
-      setFiles(res.data);
-      setNextPage(res.next_page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load files");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage]);
+  const fetchFiles = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await listFiles({ limit: 20, page: currentPage }, signal);
+        setFiles(res.data);
+        setNextPage(res.next_page);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load files");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage]
+  );
 
   useEffect(() => {
-    fetchFiles();
+    const controller = new AbortController();
+    fetchFiles(controller.signal);
+    return () => controller.abort();
   }, [fetchFiles]);
 
   const handleNextPage = () => {

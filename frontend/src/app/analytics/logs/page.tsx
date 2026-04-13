@@ -118,22 +118,28 @@ export default function LogsPage() {
   const [pageStack, setPageStack] = useState<readonly string[]>([]);
   const [currentPage, setCurrentPage] = useState<string | undefined>(undefined);
 
-  const fetchLogs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await getLogs({ limit: 50, page: currentPage });
-      setLogs(res.data);
-      setNextPage(res.next_page);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load logs");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage]);
+  const fetchLogs = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await getLogs({ limit: 50, page: currentPage }, signal);
+        setLogs(res.data);
+        setNextPage(res.next_page);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load logs");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentPage]
+  );
 
   useEffect(() => {
-    fetchLogs();
+    const controller = new AbortController();
+    fetchLogs(controller.signal);
+    return () => controller.abort();
   }, [fetchLogs]);
 
   const handleNextPage = () => {
