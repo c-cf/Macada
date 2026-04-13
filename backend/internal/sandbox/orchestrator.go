@@ -27,10 +27,12 @@ const (
 
 // OrchestratorConfig holds settings for the sandbox orchestrator.
 type OrchestratorConfig struct {
-	RuntimeImage    string // Docker image for the agent runtime
-	ControlPlaneURL string // URL the runtime uses to call back
-	DockerHost      string // Docker daemon URL
-	NetworkName     string // Docker network for sandbox containers
+	RuntimeImage    string  // Docker image for the agent runtime
+	ControlPlaneURL string  // URL the runtime uses to call back
+	DockerHost      string  // Docker daemon URL
+	NetworkName     string  // Docker network for sandbox containers
+	ContainerMemoryMB int64   // Memory limit per sandbox container (MiB); 0 = unlimited
+	ContainerCPUs     float64 // CPU quota per sandbox container; 0 = unlimited
 }
 
 // Orchestrator manages sandbox containers and implements domain.SessionRunner.
@@ -213,6 +215,38 @@ func contextWindowForModel(modelID string) int {
 		return 200_000
 	default:
 		return 200_000
+	}
+}
+
+// ReconcileOnBoot finds any leftover sandbox containers from a previous run and
+// stops + removes them. Call this once at startup before accepting traffic.
+// Stale containers are identified by the "sandbox-" name prefix used during provisioning.
+func (o *Orchestrator) ReconcileOnBoot(ctx context.Context) {
+	if o.docker == nil {
+		return
+	}
+
+	stale, err := o.docker.ListByNamePrefix(ctx, "sandbox-")
+	if err != nil {
+		log.Warn().Err(err).Msg("reconcile: failed to list stale sandbox containers")
+		return
+	}
+
+	if len(stale) == 0 {
+		return
+	}
+
+	log.Info().Int("count", len(stale)).Msg("reconcile: removing stale sandbox containers from previous run")
+
+	for _, c := range stale {
+		if err := o.docker.Stop(ctx, c.ID); err != nil {
+			log.Warn().Err(err).Str("container", c.Name).Msg("reconcile: stop failed")
+		}
+		if err := o.docker.Remove(ctx, c.ID); err != nil {
+			log.Warn().Err(err).Str("container", c.Name).Msg("reconcile: remove failed")
+		} else {
+			log.Info().Str("container", c.Name).Msg("reconcile: removed stale sandbox")
+		}
 	}
 }
 
@@ -421,20 +455,26 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 		}
 	}
 
+	// Extract toolset type from the agent's tools JSON.
+	// The tools field may contain a toolset specifier entry like {"type": "agent_toolset_20260401"}
+	// which controls which built-in toolset the runtime activates. This entry must be stripped
+	// from tools.json (sent to Anthropic) and written to agent.json's type field instead.
+	toolsetType, userTools := extractToolsetType(agentSnap.Tools)
+
 	// Build deploy manifest (API key NOT included — runtime uses LLM proxy)
 	manifest := DeployManifest{
 		Agent: AgentConfigFile{
 			ID:                agentSnap.ID,
 			Version:           agentSnap.Version,
 			Name:              agentSnap.Name,
-			Type:              agentSnap.Type,
+			Type:              toolsetType,
 			SessionID:         sessionID,
 			ControlPlaneURL:   o.config.ControlPlaneURL,
 			ControlPlaneToken: token,
 		},
 		SystemPrompt: agentSnap.System,
 		Model:        agentSnap.Model,
-		Tools:        agentSnap.Tools,
+		Tools:        userTools,
 		MCPServers:   agentSnap.MCPServers,
 		Skills:       skills,
 		Packages:     env.Config.Packages,
@@ -444,10 +484,12 @@ func (o *Orchestrator) provision(ctx context.Context, sessionID string) (*Sandbo
 	// 1. Create container (not started yet)
 	containerName := fmt.Sprintf("sandbox-%s", sessionID)
 	containerID, err := o.docker.Create(ctx, CreateOpts{
-		Image:   o.config.RuntimeImage,
-		Name:    containerName,
-		Network: o.config.NetworkName,
-		WorkDir: "/workspace",
+		Image:    o.config.RuntimeImage,
+		Name:     containerName,
+		Network:  o.config.NetworkName,
+		WorkDir:  "/workspace",
+		MemoryMB: o.config.ContainerMemoryMB,
+		CPUs:     o.config.ContainerCPUs,
 		Env: []string{
 			"WORKSPACE_PATH=/workspace",
 		},
@@ -621,6 +663,40 @@ func (o *Orchestrator) forwardPayload(ctx context.Context, sbx *SandboxInfo, pay
 	}
 
 	return nil
+}
+
+// knownToolsets is the set of toolset type identifiers recognised by the runtime.
+var knownToolsets = map[string]bool{
+	"agent_toolset_20260401": true,
+}
+
+// extractToolsetType parses the agent tools JSON and separates toolset specifier entries
+// (e.g. {"type": "agent_toolset_20260401"}) from actual user-defined tool definitions.
+// The toolset type is written to agent.json so the runtime can activate the right toolset;
+// only user-defined tools end up in tools.json which is forwarded to the Anthropic API.
+func extractToolsetType(toolsJSON json.RawMessage) (toolsetType string, userTools json.RawMessage) {
+	var entries []json.RawMessage
+	if err := json.Unmarshal(toolsJSON, &entries); err != nil {
+		return "", toolsJSON
+	}
+
+	var filtered []json.RawMessage
+	for _, raw := range entries {
+		var t struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(raw, &t) == nil && knownToolsets[t.Type] {
+			toolsetType = t.Type
+			continue // strip toolset specifier — goes to agent.json, not tools.json
+		}
+		filtered = append(filtered, raw)
+	}
+
+	if len(filtered) == 0 {
+		return toolsetType, json.RawMessage("[]")
+	}
+	out, _ := json.Marshal(filtered)
+	return toolsetType, out
 }
 
 func (o *Orchestrator) emitEvent(ctx context.Context, sessionID, eventType string, payload interface{}) {

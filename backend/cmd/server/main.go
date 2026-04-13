@@ -103,10 +103,12 @@ func main() {
 	compressor := rtctx.NewCompressor(rtctx.DefaultCompressionConfig())
 	orchestrator := sandbox.NewOrchestrator(
 		sandbox.OrchestratorConfig{
-			RuntimeImage:    cfg.RuntimeImage,
-			ControlPlaneURL: cfg.ControlPlaneURL,
-			DockerHost:      cfg.DockerHost,
-			NetworkName:     cfg.NetworkName,
+			RuntimeImage:      cfg.RuntimeImage,
+			ControlPlaneURL:   cfg.ControlPlaneURL,
+			DockerHost:        cfg.DockerHost,
+			NetworkName:       cfg.NetworkName,
+			ContainerMemoryMB: cfg.SandboxMemoryMB,
+			ContainerCPUs:     cfg.SandboxCPUs,
 		},
 		tokenGen,
 		compressor,
@@ -114,6 +116,9 @@ func main() {
 		skillRepo, envRepo, analyticsRepo,
 		resourceRepo, fileRepo, fileStorage,
 	)
+
+	// Clean up any leftover sandbox containers from a previous run before accepting traffic.
+	orchestrator.ReconcileOnBoot(context.Background())
 
 	// Start sandbox heartbeat watcher (cancelled on shutdown)
 	watcherCtx, watcherCancel := context.WithCancel(context.Background())

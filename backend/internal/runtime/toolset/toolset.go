@@ -19,7 +19,9 @@ type Toolset struct {
 }
 
 // ToolDef is the Anthropic API tool schema sent to the model.
+// Type must be "custom" for user-defined tools; the Anthropic API uses it as a discriminator.
 type ToolDef struct {
+	Type        string          `json:"type"`
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	InputSchema json.RawMessage `json:"input_schema"`

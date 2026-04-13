@@ -161,6 +161,46 @@ func (c *DockerClient) Inspect(ctx context.Context, containerID string) (*Contai
 	}, nil
 }
 
+// StaleContainer holds the minimal info needed to clean up a leftover container.
+type StaleContainer struct {
+	ID   string
+	Name string
+}
+
+// ListByNamePrefix returns all containers (running or stopped) whose name starts with prefix.
+func (c *DockerClient) ListByNamePrefix(ctx context.Context, prefix string) ([]StaleContainer, error) {
+	// Docker filters use JSON-encoded value; name filter does substring match.
+	filterJSON := fmt.Sprintf(`{"name":[%q]}`, prefix)
+	url := fmt.Sprintf("%s/containers/json?all=true&filters=%s", c.baseURL, filterJSON)
+
+	resp, err := c.do(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("list containers: %w", err)
+	}
+
+	var containers []struct {
+		ID    string   `json:"Id"`
+		Names []string `json:"Names"`
+	}
+	if err := json.Unmarshal(resp, &containers); err != nil {
+		return nil, fmt.Errorf("parse list response: %w", err)
+	}
+
+	out := make([]StaleContainer, 0, len(containers))
+	for _, c := range containers {
+		name := ""
+		if len(c.Names) > 0 {
+			name = strings.TrimPrefix(c.Names[0], "/")
+		}
+		// Only include containers whose name actually starts with the prefix
+		// (Docker name filter is a substring match, so we need exact prefix check).
+		if strings.HasPrefix(name, prefix) {
+			out = append(out, StaleContainer{ID: c.ID, Name: name})
+		}
+	}
+	return out, nil
+}
+
 // Stop stops a running container.
 func (c *DockerClient) Stop(ctx context.Context, containerID string) error {
 	url := fmt.Sprintf("%s/containers/%s/stop?t=10", c.baseURL, containerID)

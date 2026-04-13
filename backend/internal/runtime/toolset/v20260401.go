@@ -19,6 +19,7 @@ func newV20260401(workDir string) *Toolset {
 
 	ts.tools = []ToolDef{
 		{
+			Type:        "custom",
 			Name:        "bash",
 			Description: "Execute a bash command in the sandbox. The working directory is /workspace. Use this for system commands, git operations, running tests, installing packages, etc.",
 			InputSchema: mustJSON(map[string]interface{}{
@@ -41,6 +42,7 @@ func newV20260401(workDir string) *Toolset {
 			}),
 		},
 		{
+			Type:        "custom",
 			Name:        "read_file",
 			Description: "Read a file from the filesystem. Returns content with line numbers. Supports offset/limit for large files.",
 			InputSchema: mustJSON(map[string]interface{}{
@@ -63,6 +65,7 @@ func newV20260401(workDir string) *Toolset {
 			}),
 		},
 		{
+			Type:        "custom",
 			Name:        "write_file",
 			Description: "Write content to a file. Creates parent directories if needed. Overwrites existing files.",
 			InputSchema: mustJSON(map[string]interface{}{
@@ -81,6 +84,7 @@ func newV20260401(workDir string) *Toolset {
 			}),
 		},
 		{
+			Type:        "custom",
 			Name:        "edit_file",
 			Description: "Edit a file by replacing an exact string match. The old_string must appear exactly once in the file (unless replace_all is true). Use this instead of rewriting entire files.",
 			InputSchema: mustJSON(map[string]interface{}{
@@ -107,6 +111,7 @@ func newV20260401(workDir string) *Toolset {
 			}),
 		},
 		{
+			Type:        "custom",
 			Name:        "list_dir",
 			Description: "List the contents of a directory. Returns entries with '/' suffix for directories.",
 			InputSchema: mustJSON(map[string]interface{}{
@@ -121,6 +126,7 @@ func newV20260401(workDir string) *Toolset {
 			}),
 		},
 		{
+			Type:        "custom",
 			Name:        "grep",
 			Description: "Search file contents using regex patterns (powered by ripgrep). Supports context lines, pagination, and multiple output modes.",
 			InputSchema: mustJSON(map[string]interface{}{
@@ -160,6 +166,7 @@ func newV20260401(workDir string) *Toolset {
 			}),
 		},
 		{
+			Type:        "custom",
 			Name:        "glob",
 			Description: "Find files by glob pattern. Returns matching file paths sorted by modification time. Use this to discover files in the codebase.",
 			InputSchema: mustJSON(map[string]interface{}{
