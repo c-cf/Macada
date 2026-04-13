@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUsage } from "@/lib/api";
 import type { UsageDayData, UsageSummary } from "@/lib/types";
 import { ErrorMessage } from "@/components/error-message";
+import * as XLSX from "xlsx";
 
 function formatMonth(year: number, month: number): string {
   const date = new Date(year, month);
@@ -48,6 +49,114 @@ function aggregateByDay(data: readonly UsageDayData[]): readonly AggregatedDay[]
   return Array.from(map.entries())
     .map(([day, totalTokens]) => ({ day, totalTokens }))
     .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+function buildExportRows(data: readonly UsageDayData[]) {
+  return data.map((row) => ({
+    Day: row.day,
+    Model: row.model,
+    "Input Tokens": row.input_tokens,
+    "Output Tokens": row.output_tokens,
+    "Cache Read Tokens": row.cache_read_tokens,
+    "Cache Creation Tokens": row.cache_creation_tokens,
+    Requests: row.request_count,
+  }));
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportCSV(data: readonly UsageDayData[], filename: string) {
+  const rows = buildExportRows(data);
+  if (rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const lines = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers.map((h) => String(row[h as keyof typeof row])).join(",")
+    ),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  downloadBlob(blob, filename);
+}
+
+function exportExcel(data: readonly UsageDayData[], filename: string) {
+  const rows = buildExportRows(data);
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Usage");
+  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const blob = new Blob([buf], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  downloadBlob(blob, filename);
+}
+
+function ExportDropdown({
+  data,
+  year,
+  month,
+}: {
+  readonly data: readonly UsageDayData[];
+  readonly year: number;
+  readonly month: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  const prefix = `usage-${year}-${String(month + 1).padStart(2, "0")}`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="px-4 py-2 text-sm bg-card border border-border rounded-lg text-foreground hover:bg-muted transition-colors"
+      >
+        Export
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-1 w-40 bg-card border border-border rounded-lg shadow-lg z-50 overflow-hidden">
+          <button
+            onClick={() => {
+              exportCSV(data, `${prefix}.csv`);
+              setOpen(false);
+            }}
+            className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-muted transition-colors"
+          >
+            Export as CSV
+          </button>
+          <button
+            onClick={() => {
+              exportExcel(data, `${prefix}.xlsx`);
+              setOpen(false);
+            }}
+            className="w-full px-4 py-2.5 text-sm text-left text-foreground hover:bg-muted transition-colors"
+          >
+            Export as Excel
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function BarChart({ data }: { readonly data: readonly AggregatedDay[] }) {
@@ -103,7 +212,7 @@ function BarChart({ data }: { readonly data: readonly AggregatedDay[] }) {
           ))}
 
           {/* Bars */}
-          <div className="absolute inset-0 flex items-end gap-px px-1">
+          <div className="absolute inset-0 flex gap-px px-1">
             {data.map((d) => {
               const height = (d.totalTokens / chartMax) * 100;
               return (
@@ -271,9 +380,7 @@ export default function UsagePage() {
             <option>Group by: Week</option>
           </select>
 
-          <button className="px-4 py-2 text-sm bg-card border border-border rounded-lg text-foreground hover:bg-muted transition-colors">
-            Export
-          </button>
+          <ExportDropdown data={data} year={year} month={month} />
         </div>
       </div>
 
