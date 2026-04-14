@@ -26,6 +26,7 @@ type Deps struct {
 	AuthHandler        *handler.AuthHandler
 	FileHandler        *handler.FileHandler
 	ResourceHandler    *handler.ResourceHandler
+	VaultHandler       *handler.VaultHandler
 	APIKeyRepo         domain.APIKeyRepository
 	JWTValidator       authmw.TokenValidator
 	MemberRepo         authmw.MembershipChecker
@@ -125,6 +126,27 @@ func NewRouter(deps Deps) http.Handler {
 				r.Post("/archive", deps.AgentHandler.Archive)
 			})
 		})
+
+		// Vaults (requires VAULT_ENCRYPTION_KEY)
+		if deps.VaultHandler != nil {
+			r.Route("/vaults", func(r chi.Router) {
+				r.Post("/", deps.VaultHandler.Create)
+				r.Get("/", deps.VaultHandler.List)
+				r.Route("/{vault_id}", func(r chi.Router) {
+					r.Get("/", deps.VaultHandler.Retrieve)
+					r.Post("/", deps.VaultHandler.Update)
+					r.Delete("/", deps.VaultHandler.Delete)
+					r.Post("/archive", deps.VaultHandler.Archive)
+
+					// Secrets
+					r.Get("/secrets", deps.VaultHandler.ListSecrets)
+					r.Route("/secrets/{secret_key}", func(r chi.Router) {
+						r.Post("/", deps.VaultHandler.SetSecret)
+						r.Delete("/", deps.VaultHandler.DeleteSecret)
+					})
+				})
+			})
+		}
 
 		// Analytics
 		r.Route("/analytics", func(r chi.Router) {

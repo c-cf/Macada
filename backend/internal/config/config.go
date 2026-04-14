@@ -26,6 +26,7 @@ type Config struct {
 	CORSAllowedOrigins  []string
 	RateLimitRPS        float64
 	RateLimitBurst      int
+	VaultEncryptionKey  string
 }
 
 func Load() (*Config, error) {
@@ -134,6 +135,10 @@ func Load() (*Config, error) {
 		rateLimitBurst = n
 	}
 
+	// Vault encryption key (64 hex chars = 32 bytes for AES-256-GCM).
+	// Optional: vault features are disabled when not set.
+	vaultEncryptionKey := os.Getenv("VAULT_ENCRYPTION_KEY")
+
 	return &Config{
 		Port:               port,
 		DatabaseURL:        dbURL,
@@ -153,5 +158,6 @@ func Load() (*Config, error) {
 		CORSAllowedOrigins: corsOrigins,
 		RateLimitRPS:       rateLimitRPS,
 		RateLimitBurst:     rateLimitBurst,
+		VaultEncryptionKey: vaultEncryptionKey,
 	}, nil
 }

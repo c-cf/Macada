@@ -14,6 +14,7 @@ import (
 	"github.com/c-cf/macada/internal/api/handler"
 	authmw "github.com/c-cf/macada/internal/api/middleware"
 	"github.com/c-cf/macada/internal/config"
+	"github.com/c-cf/macada/internal/infra/crypto"
 	"github.com/c-cf/macada/internal/infra/postgres"
 	redisinfra "github.com/c-cf/macada/internal/infra/redis"
 	rtctx "github.com/c-cf/macada/internal/runtime/context"
@@ -95,6 +96,7 @@ func main() {
 	memberRepo := postgres.NewWorkspaceMemberRepo(pool)
 	fileRepo := postgres.NewFileRepo(pool)
 	resourceRepo := postgres.NewResourceRepo(pool)
+	vaultRepo := postgres.NewVaultRepo(pool)
 
 	// Initialize event bus
 	eventBus := redisinfra.NewEventBus(redisClient)
@@ -145,6 +147,19 @@ func main() {
 	bootstrapHandler := handler.NewBootstrapHandler(cfg.AdminSecret, workspaceRepo, apiKeyRepo)
 	authHandler := handler.NewAuthHandler(authService)
 
+	// Initialize vault encryptor (optional: vault features require VAULT_ENCRYPTION_KEY)
+	var vaultHandler *handler.VaultHandler
+	if cfg.VaultEncryptionKey != "" {
+		vaultEncryptor, err := crypto.NewVaultEncryptor(cfg.VaultEncryptionKey)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to initialize vault encryptor")
+		}
+		vaultHandler = handler.NewVaultHandler(vaultRepo, vaultEncryptor)
+		log.Info().Msg("vault encryption enabled")
+	} else {
+		log.Warn().Msg("VAULT_ENCRYPTION_KEY not set — vault endpoints disabled")
+	}
+
 	// Build router
 	rateLimiter := authmw.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
 
@@ -163,6 +178,7 @@ func main() {
 		AuthHandler:        authHandler,
 		FileHandler:        fileHandler,
 		ResourceHandler:    resourceHandler,
+		VaultHandler:       vaultHandler,
 		APIKeyRepo:         apiKeyRepo,
 		JWTValidator:       authService,
 		MemberRepo:         memberRepo,

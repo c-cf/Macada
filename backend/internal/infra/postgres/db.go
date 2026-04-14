@@ -34,6 +34,7 @@ func MigrateUp(ctx context.Context, pool *pgxpool.Pool) error {
 		"migrations/006_workspaces.up.sql",
 		"migrations/007_users.up.sql",
 		"migrations/008_files.up.sql",
+		"migrations/009_vaults.up.sql",
 	}
 	for _, file := range files {
 		data, err := migrationsFS.ReadFile(file)
@@ -58,6 +59,7 @@ func MigrateUp(ctx context.Context, pool *pgxpool.Pool) error {
 func MigrateDown(ctx context.Context, pool *pgxpool.Pool) error {
 	// Run down migrations in reverse order
 	files := []string{
+		"migrations/009_vaults.down.sql",
 		"migrations/008_files.down.sql",
 		"migrations/007_users.down.sql",
 		"migrations/006_workspaces.down.sql",
