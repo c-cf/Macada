@@ -45,8 +45,8 @@ func (c *Config) Validate() ValidationResult {
 		result.Errors = append(result.Errors, "ANTHROPIC_API_KEY is required but not set — LLM calls will fail with opaque 401 errors")
 	}
 
-	if c.SandboxSecret == "" {
-		result.Errors = append(result.Errors, "SANDBOX_SECRET is required but not set — sandbox token generation will fail")
+	if c.SandboxSecret == "change-me-in-production" {
+		result.Warnings = append(result.Warnings, "SANDBOX_SECRET is using the default value \"change-me-in-production\" — this is insecure for production use")
 	}
 
 	if u, err := url.Parse(c.ControlPlaneURL); err != nil || u.Scheme == "" || u.Host == "" {
@@ -89,6 +89,9 @@ func Load() (*Config, error) {
 	}
 
 	sandboxSecret := os.Getenv("SANDBOX_SECRET")
+	if sandboxSecret == "" {
+		sandboxSecret = "change-me-in-production"
+	}
 	runtimeImage := os.Getenv("RUNTIME_IMAGE")
 	if runtimeImage == "" {
 		runtimeImage = "macada-runtime:latest"

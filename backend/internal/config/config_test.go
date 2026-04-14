@@ -31,9 +31,9 @@ func TestConfig_Validate(t *testing.T) {
 			wantErrors: []string{"ANTHROPIC_API_KEY"},
 		},
 		{
-			name:       "empty SandboxSecret is an error",
-			modify:     func(c *Config) { c.SandboxSecret = "" },
-			wantErrors: []string{"SANDBOX_SECRET"},
+			name:         "default SandboxSecret produces a warning",
+			modify:       func(c *Config) { c.SandboxSecret = "change-me-in-production" },
+			wantWarnings: []string{"SANDBOX_SECRET"},
 		},
 		{
 			name:       "invalid ControlPlaneURL is an error",
@@ -54,9 +54,8 @@ func TestConfig_Validate(t *testing.T) {
 			name: "multiple missing values produce multiple errors",
 			modify: func(c *Config) {
 				c.AnthropicKey = ""
-				c.SandboxSecret = ""
 			},
-			wantErrors: []string{"ANTHROPIC_API_KEY", "SANDBOX_SECRET"},
+			wantErrors: []string{"ANTHROPIC_API_KEY"},
 		},
 	}
 
