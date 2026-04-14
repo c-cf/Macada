@@ -130,6 +130,7 @@ func (l *Loop) RunWithInput(ctx context.Context, input RunInput) error {
 		_ = l.reporter.Report(ctx, "span.model_request_end", map[string]interface{}{
 			"is_error":    false,
 			"latency_ms":  time.Since(startTime).Milliseconds(),
+			"model":       l.config.Settings.Model.ID,
 			"model_usage": resp.Usage,
 		})
 

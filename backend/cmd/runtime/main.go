@@ -66,8 +66,9 @@ func main() {
 	toolExec := loop.NewToolExecutor(basePath)
 	compressor := rtctx.NewCompressor(rtctx.DefaultCompressionConfig())
 
-	// Resolve toolset from agent type (nil if no toolset specified)
-	ts := toolset.Resolve(cfg.Agent.Type, basePath)
+	// Resolve toolset from agent type (nil if no toolset specified).
+	// The reporter doubles as file uploader — it POSTs to the control plane's internal file API.
+	ts := toolset.Resolve(cfg.Agent.Type, basePath, rep)
 	if ts != nil {
 		log.Info().Str("agent_type", cfg.Agent.Type).Msg("toolset activated")
 	}

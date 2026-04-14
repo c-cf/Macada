@@ -19,6 +19,7 @@ const (
 	PrefixUser        = "usr_"
 	PrefixFile        = "file_"
 	PrefixResource    = "res_"
+	PrefixVault       = "vault_"
 )
 
 func NewID(prefix string) string {
@@ -36,3 +37,4 @@ func NewAPIKeyID() string      { return NewID(PrefixAPIKey) }
 func NewUserID() string        { return NewID(PrefixUser) }
 func NewFileID() string        { return NewID(PrefixFile) }
 func NewResourceID() string    { return NewID(PrefixResource) }
+func NewVaultID() string       { return NewID(PrefixVault) }

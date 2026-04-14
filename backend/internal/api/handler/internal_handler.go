@@ -100,18 +100,26 @@ func (h *InternalHandler) IngestEvents(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		_ = h.eventBus.Publish(r.Context(), sessionID, evt)
+		if pubErr := h.eventBus.Publish(r.Context(), sessionID, evt); pubErr != nil {
+			log.Warn().Err(pubErr).Str("session_id", sessionID).Msg("failed to publish event to bus")
+		}
 
 		// Handle session status transitions
 		switch ie.Type {
 		case domain.EventTypeSessionIdle:
-			_ = h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusIdle)
+			if err := h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusIdle); err != nil {
+				log.Error().Err(err).Str("session_id", sessionID).Msg("failed to update session status to idle")
+			}
 
 		case domain.EventTypeSessionRunning:
-			_ = h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusRunning)
+			if err := h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusRunning); err != nil {
+				log.Error().Err(err).Str("session_id", sessionID).Msg("failed to update session status to running")
+			}
 
 		case domain.EventTypeSessionTerminated:
-			_ = h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusTerminated)
+			if err := h.sessionRepo.UpdateStatus(r.Context(), sessionID, domain.SessionStatusTerminated); err != nil {
+				log.Error().Err(err).Str("session_id", sessionID).Msg("failed to update session status to terminated")
+			}
 
 		case domain.EventTypeSessionError:
 			log.Warn().Str("session_id", sessionID).RawJSON("error", ie.Payload).Msg("session error reported by runtime")
@@ -149,10 +157,14 @@ func (h *InternalHandler) UploadFile(w http.ResponseWriter, r *http.Request) {
 func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string, payload json.RawMessage) {
 	var data struct {
 		ModelUsage domain.ModelUsage `json:"model_usage"`
+		Model      string            `json:"model"`
 		IsError    bool              `json:"is_error"`
 	}
 	if json.Unmarshal(payload, &data) != nil || data.IsError {
 		return
+	}
+	if data.Model == "" {
+		data.Model = "unknown"
 	}
 
 	// Extract agent ID from session
@@ -163,7 +175,9 @@ func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string,
 	var snap struct {
 		ID string `json:"id"`
 	}
-	_ = json.Unmarshal(session.Agent, &snap)
+	if err := json.Unmarshal(session.Agent, &snap); err != nil {
+		log.Warn().Err(err).Str("session_id", sessionID).Msg("failed to extract agent ID from session snapshot")
+	}
 
 	now := time.Now().UTC()
 	logEntry := postgres.LogRow{
@@ -171,7 +185,7 @@ func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string,
 		WorkspaceID:         session.WorkspaceID,
 		SessionID:           sessionID,
 		AgentID:             snap.ID,
-		Model:               "claude-sonnet-4-6", // TODO: extract from payload
+		Model:               data.Model,
 		InputTokens:         data.ModelUsage.InputTokens,
 		OutputTokens:        data.ModelUsage.OutputTokens,
 		CacheReadTokens:     data.ModelUsage.CacheReadInputTokens,
@@ -180,9 +194,13 @@ func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string,
 		CreatedAt:           now,
 	}
 
-	_ = h.analyticsRepo.InsertRequestLog(ctx, logEntry)
-	_ = h.analyticsRepo.IncrementDailyUsage(ctx, session.WorkspaceID, now, logEntry.Model,
-		logEntry.InputTokens, logEntry.OutputTokens, logEntry.CacheReadTokens, logEntry.CacheCreationTokens)
+	if err := h.analyticsRepo.InsertRequestLog(ctx, logEntry); err != nil {
+		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to insert analytics log")
+	}
+	if err := h.analyticsRepo.IncrementDailyUsage(ctx, session.WorkspaceID, now, logEntry.Model,
+		logEntry.InputTokens, logEntry.OutputTokens, logEntry.CacheReadTokens, logEntry.CacheCreationTokens); err != nil {
+		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to increment daily usage")
+	}
 
 	// Incrementally update session usage totals
 	usage := session.Usage
@@ -192,7 +210,9 @@ func (h *InternalHandler) recordAnalytics(ctx context.Context, sessionID string,
 	usage.InputTokens = &input
 	usage.OutputTokens = &output
 	usage.CacheReadInputTokens = &cacheRead
-	_ = h.sessionRepo.UpdateUsage(ctx, sessionID, usage)
+	if err := h.sessionRepo.UpdateUsage(ctx, sessionID, usage); err != nil {
+		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to update session usage")
+	}
 }
 
 func valOrZero(p *int64) int64 {

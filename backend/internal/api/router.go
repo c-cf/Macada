@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/c-cf/macada/internal/api/handler"
 	authmw "github.com/c-cf/macada/internal/api/middleware"
@@ -25,9 +26,12 @@ type Deps struct {
 	AuthHandler        *handler.AuthHandler
 	FileHandler        *handler.FileHandler
 	ResourceHandler    *handler.ResourceHandler
+	VaultHandler       *handler.VaultHandler
 	APIKeyRepo         domain.APIKeyRepository
 	JWTValidator       authmw.TokenValidator
 	MemberRepo         authmw.MembershipChecker
+	CORSAllowedOrigins []string
+	RateLimiter        *authmw.RateLimiter
 }
 
 func NewRouter(deps Deps) http.Handler {
@@ -36,7 +40,10 @@ func NewRouter(deps Deps) http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
-	r.Use(corsMiddleware)
+	r.Use(newCORSMiddleware(deps.CORSAllowedOrigins))
+	if deps.RateLimiter != nil {
+		r.Use(deps.RateLimiter.Middleware)
+	}
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -120,6 +127,27 @@ func NewRouter(deps Deps) http.Handler {
 			})
 		})
 
+		// Vaults (requires VAULT_ENCRYPTION_KEY)
+		if deps.VaultHandler != nil {
+			r.Route("/vaults", func(r chi.Router) {
+				r.Post("/", deps.VaultHandler.Create)
+				r.Get("/", deps.VaultHandler.List)
+				r.Route("/{vault_id}", func(r chi.Router) {
+					r.Get("/", deps.VaultHandler.Retrieve)
+					r.Post("/", deps.VaultHandler.Update)
+					r.Delete("/", deps.VaultHandler.Delete)
+					r.Post("/archive", deps.VaultHandler.Archive)
+
+					// Secrets
+					r.Get("/secrets", deps.VaultHandler.ListSecrets)
+					r.Route("/secrets/{secret_key}", func(r chi.Router) {
+						r.Post("/", deps.VaultHandler.SetSecret)
+						r.Delete("/", deps.VaultHandler.DeleteSecret)
+					})
+				})
+			})
+		}
+
 		// Analytics
 		r.Route("/analytics", func(r chi.Router) {
 			r.Get("/usage", deps.AnalyticsHandler.Usage)
@@ -167,17 +195,38 @@ func NewRouter(deps Deps) http.Handler {
 	return r
 }
 
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key, X-Admin-Secret, X-Workspace-Id, anthropic-version, anthropic-beta")
+// newCORSMiddleware returns a CORS middleware that only allows the given origins.
+// If allowedOrigins contains "*", all origins are permitted (development only).
+func newCORSMiddleware(allowedOrigins []string) func(http.Handler) http.Handler {
+	allowAll := len(allowedOrigins) == 1 && allowedOrigins[0] == "*"
 
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, o := range allowedOrigins {
+		allowed[strings.ToLower(o)] = struct{}{}
+	}
 
-		next.ServeHTTP(w, r)
-	})
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+
+			if allowAll {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+			} else if origin != "" {
+				if _, ok := allowed[strings.ToLower(origin)]; ok {
+					w.Header().Set("Access-Control-Allow-Origin", origin)
+					w.Header().Set("Vary", "Origin")
+				}
+			}
+
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Api-Key, X-Admin-Secret, X-Workspace-Id, anthropic-version, anthropic-beta")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }

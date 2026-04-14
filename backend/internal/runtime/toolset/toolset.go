@@ -5,6 +5,11 @@ import (
 	"encoding/json"
 )
 
+// FileUploader uploads a file from the sandbox filesystem to the control plane.
+type FileUploader interface {
+	UploadFile(ctx context.Context, filePath, filename string) error
+}
+
 // ToolResult is the output of a tool execution.
 type ToolResult struct {
 	Content string
@@ -16,6 +21,7 @@ type Toolset struct {
 	tools     []ToolDef
 	executors map[string]ExecutorFunc
 	workDir   string
+	uploader  FileUploader
 }
 
 // ToolDef is the Anthropic API tool schema sent to the model.
@@ -31,10 +37,11 @@ type ToolDef struct {
 type ExecutorFunc func(ctx context.Context, workDir string, input json.RawMessage) ToolResult
 
 // Resolve returns the Toolset for a given agent type, or nil if unknown.
-func Resolve(agentType string, workDir string) *Toolset {
+// The uploader is optional; when provided the toolset exposes an upload_file tool.
+func Resolve(agentType string, workDir string, uploader FileUploader) *Toolset {
 	switch agentType {
 	case "agent_toolset_20260401":
-		return newV20260401(workDir)
+		return newV20260401(workDir, uploader)
 	default:
 		return nil
 	}

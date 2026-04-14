@@ -59,7 +59,9 @@ func (r *Runner) Run(ctx context.Context, sessionID string, events []domain.Send
 	if compressResult != nil && compressResult.Memory != nil {
 		memJSON, err := json.Marshal(compressResult.Memory)
 		if err == nil {
-			_ = r.sessionRepo.UpdateMemory(bgCtx, sessionID, memJSON)
+			if memErr := r.sessionRepo.UpdateMemory(bgCtx, sessionID, memJSON); memErr != nil {
+				log.Error().Err(memErr).Str("session_id", sessionID).Msg("failed to update session memory")
+			}
 		}
 	}
 
@@ -110,7 +112,7 @@ func (r *Runner) Run(ctx context.Context, sessionID string, events []domain.Send
 
 	// 5b. Record analytics
 	now := time.Now().UTC()
-	agentID := r.extractAgentID(bgCtx, sessionID)
+	agentID, modelID := r.extractAgentMeta(bgCtx, sessionID)
 
 	wsID := r.extractWorkspaceID(bgCtx, sessionID)
 	logEntry := postgres.LogRow{
@@ -118,7 +120,7 @@ func (r *Runner) Run(ctx context.Context, sessionID string, events []domain.Send
 		WorkspaceID:         wsID,
 		SessionID:           sessionID,
 		AgentID:             agentID,
-		Model:               "claude-sonnet-4-6",
+		Model:               modelID,
 		InputTokens:         modelInputTokens,
 		OutputTokens:        modelOutputTokens,
 		CacheReadTokens:     modelCacheRead,
@@ -149,10 +151,12 @@ func (r *Runner) Run(ctx context.Context, sessionID string, events []domain.Send
 	// 8. Update session usage
 	inputTokens := int64(100)
 	outputTokens := int64(50)
-	_ = r.sessionRepo.UpdateUsage(bgCtx, sessionID, domain.SessionUsage{
+	if err := r.sessionRepo.UpdateUsage(bgCtx, sessionID, domain.SessionUsage{
 		InputTokens:  &inputTokens,
 		OutputTokens: &outputTokens,
-	})
+	}); err != nil {
+		log.Error().Err(err).Str("session_id", sessionID).Msg("failed to update session usage")
+	}
 
 	return nil
 }
@@ -228,18 +232,25 @@ func (r *Runner) extractWorkspaceID(ctx context.Context, sessionID string) strin
 	return session.WorkspaceID
 }
 
-func (r *Runner) extractAgentID(ctx context.Context, sessionID string) string {
+func (r *Runner) extractAgentMeta(ctx context.Context, sessionID string) (agentID, modelID string) {
 	session, err := r.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
-		return "unknown"
+		return "unknown", "unknown"
 	}
-	var agentSnapshot struct {
-		ID string `json:"id"`
+	var snap struct {
+		ID    string             `json:"id"`
+		Model domain.ModelConfig `json:"model"`
 	}
-	if err := json.Unmarshal(session.Agent, &agentSnapshot); err != nil {
-		return "unknown"
+	if err := json.Unmarshal(session.Agent, &snap); err != nil {
+		return "unknown", "unknown"
 	}
-	return agentSnapshot.ID
+	if snap.ID == "" {
+		snap.ID = "unknown"
+	}
+	if snap.Model.ID == "" {
+		snap.Model.ID = "unknown"
+	}
+	return snap.ID, snap.Model.ID
 }
 
 func (r *Runner) emitEvent(ctx context.Context, sessionID, eventType string, payload interface{}) *domain.Event {
