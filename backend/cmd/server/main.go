@@ -40,6 +40,18 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
 
+	// Validate critical configuration values at startup (fail fast).
+	vr := cfg.Validate()
+	for _, w := range vr.Warnings {
+		log.Warn().Msg(w)
+	}
+	if len(vr.Errors) > 0 {
+		for _, e := range vr.Errors {
+			log.Error().Msg(e)
+		}
+		log.Fatal().Int("errors", len(vr.Errors)).Msg("startup aborted due to configuration errors")
+	}
+
 	ctx := context.Background()
 
 	// Connect to PostgreSQL
