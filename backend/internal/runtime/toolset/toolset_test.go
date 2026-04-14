@@ -6,22 +6,22 @@ import (
 )
 
 func TestResolve(t *testing.T) {
-	ts := Resolve("agent_toolset_20260401", "/workspace")
+	ts := Resolve("agent_toolset_20260401", "/workspace", nil)
 	if ts == nil {
 		t.Fatal("expected toolset for agent_toolset_20260401")
 	}
 
-	if ts := Resolve("unknown_type", "/workspace"); ts != nil {
+	if ts := Resolve("unknown_type", "/workspace", nil); ts != nil {
 		t.Errorf("expected nil for unknown type, got %v", ts)
 	}
 
-	if ts := Resolve("", "/workspace"); ts != nil {
+	if ts := Resolve("", "/workspace", nil); ts != nil {
 		t.Errorf("expected nil for empty type, got %v", ts)
 	}
 }
 
 func TestToolsetDefinitions(t *testing.T) {
-	ts := Resolve("agent_toolset_20260401", "/workspace")
+	ts := Resolve("agent_toolset_20260401", "/workspace", nil)
 	defs := ts.Definitions()
 
 	var tools []ToolDef
@@ -52,7 +52,7 @@ func TestToolsetDefinitions(t *testing.T) {
 }
 
 func TestCanExecute(t *testing.T) {
-	ts := Resolve("agent_toolset_20260401", "/workspace")
+	ts := Resolve("agent_toolset_20260401", "/workspace", nil)
 
 	for _, name := range []string{"bash", "read_file", "write_file", "edit_file", "list_dir", "grep", "glob"} {
 		if !ts.CanExecute(name) {
@@ -66,7 +66,7 @@ func TestCanExecute(t *testing.T) {
 }
 
 func TestMergeDefinitions(t *testing.T) {
-	ts := Resolve("agent_toolset_20260401", "/workspace")
+	ts := Resolve("agent_toolset_20260401", "/workspace", nil)
 
 	// Merge with empty user tools
 	result := ts.MergeDefinitions(json.RawMessage("[]"))

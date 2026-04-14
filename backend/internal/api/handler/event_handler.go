@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"github.com/c-cf/macada/internal/domain"
 	"github.com/c-cf/macada/pkg/sse"
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 )
 
 type EventHandler struct {
@@ -75,14 +77,22 @@ func (h *EventHandler) Send(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Publish to event bus for SSE subscribers
-		_ = h.eventBus.Publish(r.Context(), sessionID, evt)
+		if pubErr := h.eventBus.Publish(r.Context(), sessionID, evt); pubErr != nil {
+			log.Warn().Err(pubErr).Str("session_id", sessionID).Msg("failed to publish event to bus")
+		}
 		storedEvents = append(storedEvents, evt)
 	}
 
-	// If there's a user.message, trigger the runner asynchronously
+	// If there's a user.message, trigger the runner asynchronously.
+	// Use a detached context so the goroutine is not cancelled when the HTTP request completes.
 	for _, ep := range req.Events {
 		if ep.Type == domain.EventTypeUserMessage {
-			go func() { _ = h.runner.Run(r.Context(), sessionID, req.Events) }()
+			evts := req.Events
+			go func() {
+				if runErr := h.runner.Run(context.Background(), sessionID, evts); runErr != nil {
+					log.Error().Err(runErr).Str("session_id", sessionID).Msg("runner failed")
+				}
+			}()
 			break
 		}
 	}

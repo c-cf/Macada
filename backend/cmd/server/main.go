@@ -12,6 +12,7 @@ import (
 
 	"github.com/c-cf/macada/internal/api"
 	"github.com/c-cf/macada/internal/api/handler"
+	authmw "github.com/c-cf/macada/internal/api/middleware"
 	"github.com/c-cf/macada/internal/config"
 	"github.com/c-cf/macada/internal/infra/postgres"
 	redisinfra "github.com/c-cf/macada/internal/infra/redis"
@@ -145,6 +146,8 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 
 	// Build router
+	rateLimiter := authmw.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
+
 	router := api.NewRouter(api.Deps{
 		EnvironmentHandler: envHandler,
 		AgentHandler:       agentHandler,
@@ -163,6 +166,8 @@ func main() {
 		APIKeyRepo:         apiKeyRepo,
 		JWTValidator:       authService,
 		MemberRepo:         memberRepo,
+		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
+		RateLimiter:        rateLimiter,
 	})
 
 	// Start server

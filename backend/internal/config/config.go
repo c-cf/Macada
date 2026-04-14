@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -22,6 +23,9 @@ type Config struct {
 	FileStoragePath     string
 	SandboxMemoryMB     int64
 	SandboxCPUs         float64
+	CORSAllowedOrigins  []string
+	RateLimitRPS        float64
+	RateLimitBurst      int
 }
 
 func Load() (*Config, error) {
@@ -99,21 +103,55 @@ func Load() (*Config, error) {
 		sandboxCPUs = f
 	}
 
+	// CORS: comma-separated list of allowed origins; defaults to "*" (dev-only).
+	var corsOrigins []string
+	if v := os.Getenv("CORS_ALLOWED_ORIGINS"); v != "" {
+		for _, o := range strings.Split(v, ",") {
+			if trimmed := strings.TrimSpace(o); trimmed != "" {
+				corsOrigins = append(corsOrigins, trimmed)
+			}
+		}
+	}
+	if len(corsOrigins) == 0 {
+		corsOrigins = []string{"*"}
+	}
+
+	// Rate limiting
+	rateLimitRPS := 20.0
+	if v := os.Getenv("RATE_LIMIT_RPS"); v != "" {
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid RATE_LIMIT_RPS: %w", err)
+		}
+		rateLimitRPS = f
+	}
+	rateLimitBurst := 40
+	if v := os.Getenv("RATE_LIMIT_BURST"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid RATE_LIMIT_BURST: %w", err)
+		}
+		rateLimitBurst = n
+	}
+
 	return &Config{
-		Port:            port,
-		DatabaseURL:     dbURL,
-		RedisURL:        redisURL,
-		AnthropicKey:    anthropicKey,
-		LogLevel:        logLevel,
-		SandboxSecret:   sandboxSecret,
-		RuntimeImage:    runtimeImage,
-		ControlPlaneURL: controlPlaneURL,
-		DockerHost:      dockerHost,
-		NetworkName:     networkName,
-		AdminSecret:     adminSecret,
-		JWTSecret:       jwtSecret,
-		FileStoragePath: fileStoragePath,
-		SandboxMemoryMB: sandboxMemoryMB,
-		SandboxCPUs:     sandboxCPUs,
+		Port:               port,
+		DatabaseURL:        dbURL,
+		RedisURL:           redisURL,
+		AnthropicKey:       anthropicKey,
+		LogLevel:           logLevel,
+		SandboxSecret:      sandboxSecret,
+		RuntimeImage:       runtimeImage,
+		ControlPlaneURL:    controlPlaneURL,
+		DockerHost:         dockerHost,
+		NetworkName:        networkName,
+		AdminSecret:        adminSecret,
+		JWTSecret:          jwtSecret,
+		FileStoragePath:    fileStoragePath,
+		SandboxMemoryMB:    sandboxMemoryMB,
+		SandboxCPUs:        sandboxCPUs,
+		CORSAllowedOrigins: corsOrigins,
+		RateLimitRPS:       rateLimitRPS,
+		RateLimitBurst:     rateLimitBurst,
 	}, nil
 }

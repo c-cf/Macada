@@ -3,18 +3,23 @@ package toolset
 import "encoding/json"
 
 // newV20260401 creates the agent_toolset_20260401 toolset.
-func newV20260401(workDir string) *Toolset {
+func newV20260401(workDir string, uploader FileUploader) *Toolset {
 	ts := &Toolset{
-		workDir: workDir,
+		workDir:  workDir,
+		uploader: uploader,
 		executors: map[string]ExecutorFunc{
-			"bash":      executeBash,
-			"read_file": executeReadFile,
+			"bash":       executeBash,
+			"read_file":  executeReadFile,
 			"write_file": executeWriteFile,
 			"edit_file":  executeEditFile,
 			"list_dir":   executeListDir,
 			"grep":       executeGrep,
 			"glob":       executeGlob,
 		},
+	}
+
+	if uploader != nil {
+		ts.executors["upload_file"] = newUploadExecutor(uploader)
 	}
 
 	ts.tools = []ToolDef{
@@ -184,6 +189,28 @@ func newV20260401(workDir string) *Toolset {
 				"required": []string{"pattern"},
 			}),
 		},
+	}
+
+	if uploader != nil {
+		ts.tools = append(ts.tools, ToolDef{
+			Type:        "custom",
+			Name:        "upload_file",
+			Description: "Upload a file from the sandbox to the workspace so the user can download it. Use this for files the user explicitly requested (e.g. generated charts, reports, exported data, build artifacts). Do NOT upload source code, logs, or intermediate files unless the user asks.",
+			InputSchema: mustJSON(map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"file_path": map[string]interface{}{
+						"type":        "string",
+						"description": "Path to the file to upload (absolute or relative to /workspace).",
+					},
+					"filename": map[string]interface{}{
+						"type":        "string",
+						"description": "Optional display name for the uploaded file. Defaults to the file's basename.",
+					},
+				},
+				"required": []string{"file_path"},
+			}),
+		})
 	}
 
 	return ts

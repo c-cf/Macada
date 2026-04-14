@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -103,6 +106,52 @@ func (r *Reporter) Report(ctx context.Context, eventType string, payload interfa
 	}
 
 	return fmt.Errorf("report event after %d retries: %w", maxRetries, lastErr)
+}
+
+// UploadFile sends a file to the control plane via multipart POST.
+// It satisfies the toolset.FileUploader interface.
+func (r *Reporter) UploadFile(ctx context.Context, filePath, filename string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	part, err := writer.CreateFormFile("file", filename)
+	if err != nil {
+		return fmt.Errorf("create form file: %w", err)
+	}
+	if _, err := io.Copy(part, f); err != nil {
+		return fmt.Errorf("copy file content: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("close multipart writer: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/internal/v1/sandbox/%s/files", r.controlPlaneURL, r.sessionID)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+r.token)
+
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("upload request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("upload failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 // Close stops the heartbeat and waits for it to finish.
